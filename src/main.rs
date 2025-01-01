@@ -75,51 +75,94 @@ fn test1() {
         )),
     );
 
-    let node = grayscale_node;
+    let node = split4_node;
     node.node_render();
 }
 
-fn main() {
-    use crate::grammar::{Grammar, Rule};
-    use crate::node::FnNode;
+use crate::node::FnNode;
+fn gen_fn_from_grammar() -> Option<FnNode> {
+    use crate::grammar::{Grammar, GrammarBranch};
     let e = 0;
     let a = 1;
     let c = 2;
 
     let mut grammar = Grammar::new();
-    grammar.add_rule(Rule {
-        branches: vec![(
-            FnNode::Triple(
-                Box::new(FnNode::Rule(0)),
-                Box::new(FnNode::Rule(0)),
-                Box::new(FnNode::Rule(0)),
+    let _ = grammar.add_rule(
+        vec![GrammarBranch {
+            node: FnNode::Triple(
+                Box::new(FnNode::Rule(c)),
+                Box::new(FnNode::Rule(c)),
+                Box::new(FnNode::Rule(c)),
             ),
-            1.0,
-        )],
-    });
-    grammar.add_rule(Rule {
-        branches: vec![
-            (FnNode::Random, 1.0 / 3.0),
-            (FnNode::X, 1.0 / 3.0),
-            (FnNode::Y, 1.0 / 3.0),
+            weight: 1,
+        }],
+        "E",
+    );
+    let _ = grammar.add_rule(
+        vec![
+            GrammarBranch {
+                node: FnNode::Random,
+                weight: 1,
+            },
+            GrammarBranch {
+                node: FnNode::X,
+                weight: 1,
+            },
+            GrammarBranch {
+                node: FnNode::Y,
+                weight: 1,
+            },
+            // GrammarBranch {
+            //     node: FnNode::T,
+            //     weight: 1,
+            // },
         ],
-    });
-
-    grammar.add_rule(Rule {
-        branches: vec![
-            (FnNode::Rule(a), 1.0 / 4.0),
-            (
-                FnNode::Add(Box::new(FnNode::Rule(c)), Box::new(FnNode::Rule(c))),
-                3.0 / 8.0,
-            ),
-            (
-                FnNode::Mul(Box::new(FnNode::Rule(c)), Box::new(FnNode::Rule(c))),
-                3.0 / 8.0,
-            ),
+        "A",
+    );
+    let _ = grammar.add_rule(
+        vec![
+            GrammarBranch {
+                node: FnNode::Rule(a),
+                weight: 2,
+            },
+            GrammarBranch {
+                node: FnNode::Add(Box::new(FnNode::Rule(c)), Box::new(FnNode::Rule(c))),
+                weight: 3,
+            },
+            GrammarBranch {
+                node: FnNode::Mul(Box::new(FnNode::Rule(c)), Box::new(FnNode::Rule(c))),
+                weight: 3,
+            },
         ],
-    });
+        "C",
+    );
     println!("{}", grammar);
 
-    let func = grammar.gen_rule(0, 3);
-    println!("{:?}", func);
+    grammar.gen_rule(0, 15)
+}
+
+fn main() {
+    // let func = gen_fn_from_grammar().unwrap();
+    // println!("{}", func);
+    let func = FnNode::Triple(
+        Box::new(FnNode::Y),
+        Box::new(FnNode::Mul(
+            Box::new(FnNode::Add(
+                Box::new(FnNode::X),
+                Box::new(FnNode::Number(0.862870)),
+            )),
+            Box::new(FnNode::Y),
+        )),
+        Box::new(FnNode::Add(
+            Box::new(FnNode::Mul(
+                Box::new(FnNode::Number(0.809281)),
+                Box::new(FnNode::Number(0.090437)),
+            )),
+            Box::new(FnNode::Mul(
+                Box::new(FnNode::Number(-0.222719)),
+                Box::new(FnNode::Number(-0.812068)),
+            )),
+        )),
+    );
+    func.node_render();
 }

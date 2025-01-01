@@ -2,13 +2,21 @@ use crate::node::FnNode;
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
-pub struct Grammar {
-    pub rules: Vec<Rule>,
+pub struct GrammarBranch {
+    pub node: FnNode,
+    pub weight: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct Rule {
-    pub branches: Vec<(FnNode, f32)>,
+    symbol: &'static str,
+    branches: Vec<GrammarBranch>,
+    weight_sum: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Grammar {
+    pub rules: Vec<Rule>,
 }
 
 impl Grammar {
@@ -16,84 +24,110 @@ impl Grammar {
         Grammar { rules: vec![] }
     }
 
-    pub fn add_rule(&mut self, rule: Rule) {
-        self.rules.push(rule);
-    }
-
-    pub fn gen_rule(&self, rule_idx: usize, depth: usize) -> Result<FnNode, &str> {
-        println!("Grammar:\n{}", self);
-        println!("Rule: {}", rule_idx);
-        if !(rule_idx < self.rules.len()) {
-            return Err("Invalid Rule")
+    pub fn add_rule(
+        &mut self,
+        branches: Vec<GrammarBranch>,
+        symbol: &'static str,
+    ) -> Result<(), &'static str> {
+        if branches.is_empty() {
+            return Err("Empty rule branches");
         }
 
-        use rand::Rng;
-        let rand = rand::thread_rng().gen_range(0..10);
-        let branches = &self.rules[rule_idx].branches;
-        if branches.len() == 0 {
-            println!("Invalid Grammar");
-            return Err("Invalid Grammar");
-        }
-
-        let idx = rand % branches.len();
-        self.gen_node(branches[idx].0.clone(), depth)
+        let weight_sum = branches.iter().map(|b| b.weight).sum();
+        self.rules.push(Rule {
+            symbol,
+            branches,
+            weight_sum,
+        });
+        Ok(())
     }
 
-    pub fn gen_node(&self, node: FnNode, depth: usize) -> Result<FnNode, &str> {
+    pub fn gen_rule(&self, rule_idx: usize, depth: usize) -> Option<FnNode> {
+        if depth == 0 || rule_idx >= self.rules.len() {
+            return None;
+        }
+
+        let rule = &self.rules[rule_idx];
+        let mut attempts = 100; // GEN_RULE_MAX_ATTEMPTS
+
+        while attempts > 0 {
+            let p = rand::random::<f32>();
+            let mut t = 0.0;
+
+            for branch in &rule.branches {
+                t += (branch.weight as f32 / rule.weight_sum as f32) as f32;
+
+                if t >= p {
+                    let node = self.gen_node(&branch.node, depth);
+                    match node {
+                        Some(node) => return Some(node),
+                        None => break,
+                    }
+                }
+            }
+            attempts -= 1;
+        }
+        None
+    }
+
+    pub fn gen_node(&self, node: &FnNode, depth: usize) -> Option<FnNode> {
         match node {
-            FnNode::Rule(entry) => self.gen_rule(entry, depth),
-            FnNode::Random => {
-                use rand::Rng;
-                let rand = rand::thread_rng().gen_range(0.0..1.0);
-                let rand = (rand * 2.0) - 1.0;
-                Ok(FnNode::Number(rand))
+            // Terminal nodes
+            FnNode::X | FnNode::Y | FnNode::T | FnNode::Number(_) | FnNode::Boolean(_) => {
+                Some(node.clone())
             }
 
-            FnNode::Add(a, b) => {
-                let a = self.gen_node(*a, depth)?;
-                let b = self.gen_node(*b, depth)?;
-                Ok(FnNode::Add(Box::new(a), Box::new(b)))
-            }
-            FnNode::Sub(a, b) => {
-                let a = self.gen_node(*a, depth)?;
-                let b = self.gen_node(*b, depth)?;
-                Ok(FnNode::Sub(Box::new(a), Box::new(b)))
-            }
-            FnNode::Mul(a, b) => {
-                let a = self.gen_node(*a, depth)?;
-                let b = self.gen_node(*b, depth)?;
-                Ok(FnNode::Mul(Box::new(a), Box::new(b)))
-            }
-            FnNode::Div(a, b) => {
-                let a = self.gen_node(*a, depth)?;
-                let b = self.gen_node(*b, depth)?;
-                Ok(FnNode::Div(Box::new(a), Box::new(b)))
-            }
-            FnNode::Mod(a, b) => {
-                let a = self.gen_node(*a, depth)?;
-                let b = self.gen_node(*b, depth)?;
-                Ok(FnNode::Mod(Box::new(a), Box::new(b)))
-            }
-            FnNode::Compare(a, ord, b) => {
-                let a = self.gen_node(*a, depth)?;
-                let b = self.gen_node(*b, depth)?;
-                Ok(FnNode::Compare(Box::new(a), ord, Box::new(b)))
+            // Random number generation
+            FnNode::Random => Some(FnNode::Number(rand::random::<f64>() * 2.0 - 1.0)),
+
+            // Unary operations
+            FnNode::Sqrt(expr) | FnNode::Abs(expr) | FnNode::Sin(expr) => {
+                self.gen_node(expr, depth - 1).map(|n| match node {
+                    FnNode::Sqrt(_) => FnNode::Sqrt(Box::new(n)),
+                    FnNode::Abs(_) => FnNode::Abs(Box::new(n)),
+                    FnNode::Sin(_) => FnNode::Sin(Box::new(n)),
+                    _ => unreachable!(),
+                })
             }
 
-            FnNode::Triple(a, b, c) => {
-                let a = self.gen_node(*a, depth)?;
-                let b = self.gen_node(*b, depth)?;
-                let c = self.gen_node(*c, depth)?;
-                Ok(FnNode::Triple(Box::new(a), Box::new(b), Box::new(c)))
-            }
-            FnNode::If(cond, then, elze) => {
-                let a = self.gen_node(*cond, depth)?;
-                let b = self.gen_node(*then, depth)?;
-                let c = self.gen_node(*elze, depth)?;
-                Ok(FnNode::If(Box::new(a), Box::new(b), Box::new(c)))
+            // Binary operations
+            FnNode::Add(lhs, rhs)
+            | FnNode::Sub(lhs, rhs)
+            | FnNode::Mul(lhs, rhs)
+            | FnNode::Div(lhs, rhs)
+            | FnNode::Mod(lhs, rhs)
+            | FnNode::Compare(lhs, _, rhs) => {
+                let l = self.gen_node(lhs, depth)?;
+                let r = self.gen_node(rhs, depth)?;
+                Some(match node {
+                    FnNode::Add(_, _) => FnNode::Add(Box::new(l), Box::new(r)),
+                    FnNode::Sub(_, _) => FnNode::Sub(Box::new(l), Box::new(r)),
+                    FnNode::Mul(_, _) => FnNode::Mul(Box::new(l), Box::new(r)),
+                    FnNode::Div(_, _) => FnNode::Div(Box::new(l), Box::new(r)),
+                    FnNode::Mod(_, _) => FnNode::Mod(Box::new(l), Box::new(r)),
+                    FnNode::Compare(_, kind, _) => {
+                        FnNode::Compare(Box::new(l), kind.clone(), Box::new(r))
+                    }
+                    _ => unreachable!(),
+                })
             }
 
-            _ => Ok(node),
+            // Triple operation
+            FnNode::Triple(first, second, third) | FnNode::If(first, second, third) => {
+                let f = self.gen_node(first, depth)?;
+                let s = self.gen_node(second, depth)?;
+                let t = self.gen_node(third, depth)?;
+                match node {
+                    FnNode::Triple(_, _, _) => {
+                        Some(FnNode::Triple(Box::new(f), Box::new(s), Box::new(t)))
+                    }
+                    FnNode::If(_, _, _) => Some(FnNode::If(Box::new(f), Box::new(s), Box::new(t))),
+                    _ => unreachable!(),
+                }
+            }
+
+            // Rule reference
+            FnNode::Rule(rule_idx) => self.gen_rule(*rule_idx, depth - 1),
         }
     }
 }
@@ -104,12 +138,12 @@ impl Display for Grammar {
             if idx != 0 {
                 write!(f, "\n")?;
             }
-            write!(f, "Rule {}: ", idx)?;
-            for (idx, (node, prob)) in rule.branches.iter().enumerate() {
-                if idx != 0 {
+            write!(f, "{} {}: ", idx,  rule.symbol)?;
+            for (jdx, branch) in rule.branches.iter().enumerate() {
+                if jdx != 0 {
                     write!(f, " | ")?;
                 }
-                write!(f, "({:?}, [{:.2}])", node, prob)?;
+                write!(f, "{} [{}]", branch.node, branch.weight)?;
             }
         }
         Ok(())
