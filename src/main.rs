@@ -138,31 +138,12 @@ fn gen_fn_from_grammar() -> Option<FnNode> {
     );
     println!("{}", grammar);
 
-    grammar.gen_rule(0, 15)
+    grammar.gen_rule(0, 12)
 }
 
 fn main() {
-    // let func = gen_fn_from_grammar().unwrap();
-    // println!("{}", func);
-    let func = FnNode::Triple(
-        Box::new(FnNode::Y),
-        Box::new(FnNode::Mul(
-            Box::new(FnNode::Add(
-                Box::new(FnNode::X),
-                Box::new(FnNode::Number(0.862870)),
-            )),
-            Box::new(FnNode::Y),
-        )),
-        Box::new(FnNode::Add(
-            Box::new(FnNode::Mul(
-                Box::new(FnNode::Number(0.809281)),
-                Box::new(FnNode::Number(0.090437)),
-            )),
-            Box::new(FnNode::Mul(
-                Box::new(FnNode::Number(-0.222719)),
-                Box::new(FnNode::Number(-0.812068)),
-            )),
-        )),
-    );
+    let func = gen_fn_from_grammar().unwrap();
+    println!("function:");
+    println!("{}", func);
     func.node_render();
 }

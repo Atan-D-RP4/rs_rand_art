@@ -19,7 +19,7 @@ enum CompareKind {
 enum FnNode {
     X,
     Y,
-    Number(f32),
+    Number(f64),
     Add(Box<FnNode>, Box<FnNode>),
     Sub(Box<FnNode>, Box<FnNode>),
     Mul(Box<FnNode>, Box<FnNode>),
@@ -38,13 +38,13 @@ enum FnNode {
 
 #[derive(Debug, Clone)]
 struct Color {
-    r: f32,
-    g: f32,
-    b: f32,
+    r: f64,
+    g: f64,
+    b: f64,
 }
 
 #[allow(dead_code)]
-fn split4(x: f32, y: f32) -> Color {
+fn split4(x: f64, y: f64) -> Color {
     // Either way works
     // if x * y >= 0.0 {
     if x * y > 0.0 {
@@ -61,12 +61,12 @@ fn split4(x: f32, y: f32) -> Color {
 }
 
 #[allow(dead_code)]
-fn render(function: fn(x: f32, y: f32) -> Color) {
+fn render(function: fn(x: f64, y: f64) -> Color) {
     let mut img = img::ImageBuffer::new(WIDTH, HEIGHT);
     for y in 0..HEIGHT {
-        let ny = y as f32 / (HEIGHT as f32) * 2.0 - 1.0;
+        let ny = y as f64 / (HEIGHT as f64) * 2.0 - 1.0;
         for x in 0..WIDTH {
-            let nx = x as f32 / (WIDTH as f32) * 2.0 - 1.0;
+            let nx = x as f64 / (WIDTH as f64) * 2.0 - 1.0;
             let color = function(nx, ny);
             img.put_pixel(
                 x as u32,
