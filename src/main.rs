@@ -2,7 +2,8 @@ mod grammar;
 mod node;
 mod simple;
 
-fn test1() {
+#[allow(dead_code)]
+fn test1() -> Result<(), String> {
     use crate::node::{CompareKind, FnNode};
     // Grayscale node
     let grayscale_node = FnNode::Triple(
@@ -76,7 +77,7 @@ fn test1() {
     );
 
     let node = split4_node;
-    node.node_render();
+    node.render()
 }
 
 use crate::node::FnNode;
@@ -136,14 +137,14 @@ fn gen_fn_from_grammar() -> Option<FnNode> {
         ],
         "C",
     );
-    println!("{}", grammar);
+    println!("{}\n", grammar);
 
-    grammar.gen_rule(0, 12)
+    grammar.gen_rule(0, 8)
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     let func = gen_fn_from_grammar().unwrap();
     println!("function:");
     println!("{}", func);
-    func.node_render();
+    func.render()
 }

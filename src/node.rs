@@ -1,9 +1,26 @@
+// impl FnNode {
+//     pub fn _is_terminal(&self) -> bool {
+//         match self {
+//             FnNode::Rule(_) => false,
+//             FnNode::Add(a, b)
+//             | FnNode::Sub(a, b)
+//             | FnNode::Mul(a, b)
+//             | FnNode::Div(a, b)
+//             | FnNode::Mod(a, b)
+//             | FnNode::Compare(a, _, b) => a._is_terminal() && b._is_terminal(),
+//             FnNode::Triple(a, b, c) | FnNode::If(a, b, c) => {
+//                 a._is_terminal() && b._is_terminal() && c._is_terminal()
+//             }
+//             _ => true,
+//         }
+//     }
+// }
 use std::fmt::Display;
 
 use image::{self as img};
 
-const WIDTH: u32 = 1600;
-const HEIGHT: u32 = 900;
+const WIDTH: u32 = 1920;
+const HEIGHT: u32 = 944;
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
@@ -38,26 +55,9 @@ pub enum FnNode {
     Sqrt(Box<FnNode>),
     Abs(Box<FnNode>),
     Sin(Box<FnNode>),
-    // Pow, Sin, Cos, Tan,
+    Cos(Box<FnNode>),
+    Tan(Box<FnNode>),
 }
-
-// impl FnNode {
-//     pub fn _is_terminal(&self) -> bool {
-//         match self {
-//             FnNode::Rule(_) => false,
-//             FnNode::Add(a, b)
-//             | FnNode::Sub(a, b)
-//             | FnNode::Mul(a, b)
-//             | FnNode::Div(a, b)
-//             | FnNode::Mod(a, b)
-//             | FnNode::Compare(a, _, b) => a._is_terminal() && b._is_terminal(),
-//             FnNode::Triple(a, b, c) | FnNode::If(a, b, c) => {
-//                 a._is_terminal() && b._is_terminal() && c._is_terminal()
-//             }
-//             _ => true,
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone)]
 pub struct Color {
@@ -67,9 +67,6 @@ pub struct Color {
 }
 
 impl FnNode {
-    const WIDTH: u32 = 400;
-    const HEIGHT: u32 = 400;
-
     pub fn node_eval(&self, x: f64, y: f64 /*t: f64*/) -> Result<FnNode, String> {
         match self {
             FnNode::X => Ok(FnNode::Number(x)),
@@ -78,95 +75,50 @@ impl FnNode {
             FnNode::Number(val) => Ok(FnNode::Number(*val)),
             FnNode::Boolean(val) => Ok(FnNode::Boolean(*val)),
 
-            FnNode::Sqrt(expr) | FnNode::Abs(expr) | FnNode::Sin(expr) => {
+            FnNode::Sqrt(expr)
+            | FnNode::Abs(expr)
+            | FnNode::Sin(expr)
+            | FnNode::Cos(expr)
+            | FnNode::Tan(expr) => {
                 let expr = expr.node_eval(x, y)?;
                 match expr {
                     FnNode::Number(val) => match self {
                         FnNode::Sqrt(_) => Ok(FnNode::Number(val.sqrt())),
                         FnNode::Abs(_) => Ok(FnNode::Number(val.abs())),
                         FnNode::Sin(_) => Ok(FnNode::Number(val.sin())),
+                        FnNode::Cos(_) => Ok(FnNode::Number(val.cos())),
+                        FnNode::Tan(_) => Ok(FnNode::Number(val.tan())),
                         _ => Err(format!("node_eval: Unary - {expr}")),
                     },
                     _ => Err(format!("node_eval: Unary - {expr}")),
                 }
             }
 
-            FnNode::Add(a, b) => {
-                let a = a.node_eval(x, y)?;
-                let b = b.node_eval(x, y)?;
-                let err_str = format!("node_eval: Add - {a} {b}");
-                match (a, b) {
-                    (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Number(a + b)),
-                    _ => Err(err_str),
-                }
-            }
-            FnNode::Sub(a, b) => {
-                let a = a.node_eval(x, y)?;
-                let b = b.node_eval(x, y)?;
-                let err_str = format!("node_eval: Sub - {a} {b}");
-                match (a, b) {
-                    (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Number(a - b)),
-                    _ => Err(err_str),
-                }
-            }
-            FnNode::Mul(a, b) => {
-                let a = a.node_eval(x, y)?;
-                let b = b.node_eval(x, y)?;
-                let err_str = format!("node_eval: Mul - {a} {b}");
-                match (a, b) {
-                    (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Number(a * b)),
-                    _ => Err(err_str),
-                }
-            }
-            FnNode::Div(a, b) => {
-                let a = a.node_eval(x, y)?;
-                let b = b.node_eval(x, y)?;
-                let err_str = format!("node_eval: Mul - {a} {b}");
-                match (a, b) {
-                    (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Number(a / b)),
-                    _ => Err(err_str),
-                }
-            }
-            FnNode::Mod(a, b) => {
-                let a = a.node_eval(x, y)?;
-                let b = b.node_eval(x, y)?;
-                let err_str = format!("node_eval: Mul - {a} {b}");
-                match (a, b) {
-                    (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Number(a.rem_euclid(b))),
-                    _ => Err(err_str),
-                }
-            }
-            FnNode::Compare(a, ord, b) => {
-                let a = a.node_eval(x, y)?;
-                let b = b.node_eval(x, y)?;
-                let err_str = format!("node_eval: Mul - {a} {b}");
-                match ord {
-                    CompareKind::GreaterThan => match (a, b) {
-                        (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Boolean(a > b)),
-                        _ => Err(err_str),
+            FnNode::Add(a, b)
+            | FnNode::Sub(a, b)
+            | FnNode::Mul(a, b)
+            | FnNode::Div(a, b)
+            | FnNode::Mod(a, b)
+            | FnNode::Compare(a, _, b) => match (a.node_eval(x, y)?, b.node_eval(x, y)?) {
+                (FnNode::Number(a), FnNode::Number(b)) => match self {
+                    FnNode::Add(_, _) => Ok(FnNode::Number(a + b)),
+                    FnNode::Sub(_, _) => Ok(FnNode::Number(a - b)),
+                    FnNode::Mul(_, _) => Ok(FnNode::Number(a * b)),
+                    FnNode::Div(_, _) => Ok(FnNode::Number(a / b)),
+                    FnNode::Mod(_, _) => Ok(FnNode::Number(a.rem_euclid(b))),
+                    FnNode::Compare(_, ord, _) => match ord {
+                        CompareKind::GreaterThan => Ok(FnNode::Boolean(a > b)),
+                        CompareKind::LessThan => Ok(FnNode::Boolean(a < b)),
+                        CompareKind::GreaterThanEqual => Ok(FnNode::Boolean(a >= b)),
+                        CompareKind::LessThanEqual => Ok(FnNode::Boolean(a <= b)),
+                        CompareKind::Equal => Ok(FnNode::Boolean(a == b)),
+                        CompareKind::NotEqual => Ok(FnNode::Boolean(a != b)),
                     },
-                    CompareKind::LessThan => match (a, b) {
-                        (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Boolean(a < b)),
-                        _ => Err(err_str),
-                    },
-                    CompareKind::GreaterThanEqual => match (a, b) {
-                        (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Boolean(a >= b)),
-                        _ => Err(err_str),
-                    },
-                    CompareKind::LessThanEqual => match (a, b) {
-                        (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Boolean(a <= b)),
-                        _ => Err(err_str),
-                    },
-                    CompareKind::Equal => match (a, b) {
-                        (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Boolean(a == b)),
-                        _ => Err(err_str),
-                    },
-                    CompareKind::NotEqual => match (a, b) {
-                        (FnNode::Number(a), FnNode::Number(b)) => Ok(FnNode::Boolean(a != b)),
-                        _ => Err(err_str),
-                    },
-                }
-            }
+                    _ => Err(format!("node_eval: Binary - {a} {b}")),
+                },
+                _ => Err(format!("node_eval: Binary - {a} {b}")),
+            },
+
             FnNode::If(cond, then, elze) => {
                 let cond = cond.node_eval(x, y)?;
                 match cond {
@@ -210,28 +162,24 @@ impl FnNode {
         }
     }
 
-    pub fn node_render(&self) {
+    pub fn render(&self) -> Result<(), String> {
         println!("Rendering node:\n{}", self);
-        let h = FnNode::HEIGHT;
-        let w = FnNode::WIDTH;
-        let mut img = img::ImageBuffer::new(w, h);
-        for y in 0..h {
-            let ny = (y as f64 / (h as f64) * 2.0) - 1.0;
-            for x in 0..w {
-                let nx = (x as f64 / (w as f64) * 2.0) - 1.0;
-                let color = self.expr_eval(nx, ny).unwrap();
-                img.put_pixel(
-                    x as u32,
-                    y as u32,
-                    img::Rgb([
-                        (((color.r + 1.0) / 2.0) * 255.0) as u8,
-                        (((color.g + 1.0) / 2.0) * 255.0) as u8,
-                        (((color.b + 1.0) / 2.0) * 255.0) as u8,
-                    ]),
-                );
+        let mut img = img::ImageBuffer::new(WIDTH, HEIGHT);
+        for y in 0..HEIGHT {
+            let ny = (y as f64 / (HEIGHT as f64) * 2.0) - 1.0;
+            for x in 0..WIDTH {
+                let nx = (x as f64 / (WIDTH as f64) * 2.0) - 1.0;
+                let color = self.expr_eval(nx, ny)?;
+                let pixel = img::Rgb([
+                    (((color.r + 1.0) / 2.0) * 255.0) as u8,
+                    (((color.g + 1.0) / 2.0) * 255.0) as u8,
+                    (((color.b + 1.0) / 2.0) * 255.0) as u8,
+                ]);
+                img.put_pixel(x as u32, y as u32, pixel);
             }
         }
         img.save("output.png").unwrap();
+        Ok(())
     }
 }
 
@@ -259,6 +207,8 @@ impl Display for FnNode {
             FnNode::Sqrt(expr) => write!(f, "sqrt({})", expr),
             FnNode::Abs(expr) => write!(f, "abs({})", expr),
             FnNode::Sin(expr) => write!(f, "sin({})", expr),
+            FnNode::Cos(expr) => write!(f, "cos({})", expr),
+            FnNode::Tan(expr) => write!(f, "tan({})", expr),
         }
     }
 }

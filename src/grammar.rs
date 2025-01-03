@@ -9,19 +9,22 @@ pub struct GrammarBranch {
 
 #[derive(Debug, Clone)]
 pub struct Rule {
-    symbol: &'static str,
     branches: Vec<GrammarBranch>,
     weight_sum: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct Grammar {
+    pub symbols: Vec<&'static str>,
     pub rules: Vec<Rule>,
 }
 
 impl Grammar {
     pub fn new() -> Self {
-        Grammar { rules: vec![] }
+        Grammar {
+            symbols: vec![],
+            rules: vec![],
+        }
     }
 
     pub fn add_rule(
@@ -35,10 +38,10 @@ impl Grammar {
 
         let weight_sum = branches.iter().map(|b| b.weight).sum();
         self.rules.push(Rule {
-            symbol,
             branches,
             weight_sum,
         });
+        self.symbols.push(symbol);
         Ok(())
     }
 
@@ -81,14 +84,18 @@ impl Grammar {
             FnNode::Random => Some(FnNode::Number(rand::random::<f64>() * 2.0 - 1.0)),
 
             // Unary operations
-            FnNode::Sqrt(expr) | FnNode::Abs(expr) | FnNode::Sin(expr) => {
-                self.gen_node(expr, depth - 1).map(|n| match node {
-                    FnNode::Sqrt(_) => FnNode::Sqrt(Box::new(n)),
-                    FnNode::Abs(_) => FnNode::Abs(Box::new(n)),
-                    FnNode::Sin(_) => FnNode::Sin(Box::new(n)),
-                    _ => unreachable!(),
-                })
-            }
+            FnNode::Sqrt(expr)
+            | FnNode::Abs(expr)
+            | FnNode::Sin(expr)
+            | FnNode::Cos(expr)
+            | FnNode::Tan(expr) => self.gen_node(expr, depth - 1).map(|n| match node {
+                FnNode::Sqrt(_) => FnNode::Sqrt(Box::new(n)),
+                FnNode::Abs(_) => FnNode::Abs(Box::new(n)),
+                FnNode::Sin(_) => FnNode::Sin(Box::new(n)),
+                FnNode::Cos(_) => FnNode::Cos(Box::new(n)),
+                FnNode::Tan(_) => FnNode::Tan(Box::new(n)),
+                _ => unreachable!(),
+            }),
 
             // Binary operations
             FnNode::Add(lhs, rhs)
@@ -138,7 +145,7 @@ impl Display for Grammar {
             if idx != 0 {
                 write!(f, "\n")?;
             }
-            write!(f, "{} {}: ", idx,  rule.symbol)?;
+            write!(f, "{} {}: ", idx, self.symbols[idx])?;
             for (jdx, branch) in rule.branches.iter().enumerate() {
                 if jdx != 0 {
                     write!(f, " | ")?;
