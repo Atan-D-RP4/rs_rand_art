@@ -7,6 +7,7 @@ pub struct GrammarBranch {
     pub weight: usize,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Rule {
     branches: Vec<GrammarBranch>,
@@ -19,6 +20,7 @@ pub struct Grammar {
     pub rules: Vec<Rule>,
 }
 
+#[allow(dead_code)]
 impl Grammar {
     pub fn new() -> Self {
         Grammar {
@@ -54,11 +56,12 @@ impl Grammar {
         let mut attempts = 100; // GEN_RULE_MAX_ATTEMPTS
 
         while attempts > 0 {
-            let p = rand::random::<f32>();
+            use rand::Rng;
+            let p = rand::thread_rng().gen_range(0.0..1.0);
             let mut t = 0.0;
 
             for branch in &rule.branches {
-                t += (branch.weight as f32 / rule.weight_sum as f32) as f32;
+                t += branch.weight as f32 / rule.weight_sum as f32;
 
                 if t >= p {
                     let node = self.gen_node(&branch.node, depth);
@@ -81,37 +84,27 @@ impl Grammar {
             }
 
             // Random number generation
-            FnNode::Random => Some(FnNode::Number(rand::random::<f64>() * 2.0 - 1.0)),
+            FnNode::Random => {
+                use rand::Rng;
+                Some(FnNode::Number(
+                    rand::thread_rng().gen_range(0.0..1.0) * 2.0 - 1.0,
+                ))
+            }
 
             // Unary operations
-            FnNode::Sqrt(expr)
-            | FnNode::Abs(expr)
-            | FnNode::Sin(expr)
-            | FnNode::Cos(expr)
-            | FnNode::Tan(expr) => self.gen_node(expr, depth - 1).map(|n| match node {
-                FnNode::Sqrt(_) => FnNode::Sqrt(Box::new(n)),
-                FnNode::Abs(_) => FnNode::Abs(Box::new(n)),
-                FnNode::Sin(_) => FnNode::Sin(Box::new(n)),
-                FnNode::Cos(_) => FnNode::Cos(Box::new(n)),
-                FnNode::Tan(_) => FnNode::Tan(Box::new(n)),
-                _ => unreachable!(),
-            }),
+            FnNode::Unary(op, expr) => {
+                let e = self.gen_node(expr, depth)?;
+                Some(FnNode::Unary(op.clone(), Box::new(e)))
+            }
 
             // Binary operations
-            FnNode::Add(lhs, rhs)
-            | FnNode::Sub(lhs, rhs)
-            | FnNode::Mul(lhs, rhs)
-            | FnNode::Div(lhs, rhs)
-            | FnNode::Mod(lhs, rhs)
-            | FnNode::Compare(lhs, _, rhs) => {
+            FnNode::Arithmetic(lhs, _, rhs) | FnNode::Compare(lhs, _, rhs) => {
                 let l = self.gen_node(lhs, depth)?;
                 let r = self.gen_node(rhs, depth)?;
                 Some(match node {
-                    FnNode::Add(_, _) => FnNode::Add(Box::new(l), Box::new(r)),
-                    FnNode::Sub(_, _) => FnNode::Sub(Box::new(l), Box::new(r)),
-                    FnNode::Mul(_, _) => FnNode::Mul(Box::new(l), Box::new(r)),
-                    FnNode::Div(_, _) => FnNode::Div(Box::new(l), Box::new(r)),
-                    FnNode::Mod(_, _) => FnNode::Mod(Box::new(l), Box::new(r)),
+                    FnNode::Arithmetic(_, kind, _) => {
+                        FnNode::Arithmetic(Box::new(l), kind.clone(), Box::new(r))
+                    }
                     FnNode::Compare(_, kind, _) => {
                         FnNode::Compare(Box::new(l), kind.clone(), Box::new(r))
                     }
