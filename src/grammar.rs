@@ -47,7 +47,7 @@ impl Grammar {
         Ok(())
     }
 
-    pub fn gen_rule(&self, rule_idx: usize, depth: usize) -> Option<FnNode> {
+    pub fn gen_from_rule(&self, rule_idx: usize, depth: usize) -> Option<FnNode> {
         if depth == 0 || rule_idx >= self.rules.len() {
             return None;
         }
@@ -127,8 +127,106 @@ impl Grammar {
             }
 
             // Rule reference
-            FnNode::Rule(rule_idx) => self.gen_rule(*rule_idx, depth - 1),
+            FnNode::Rule(rule_idx) => self.gen_from_rule(*rule_idx, depth - 1),
         }
+    }
+}
+
+impl Default for Grammar {
+    fn default() -> Self {
+        use crate::node::{ArithmeticOp, FnNode /*CompareOp*/, UnaryOp};
+        // let e = 0;
+        let a = 1;
+        let c = 2;
+
+        let mut grammar = Grammar::new();
+        let _ = grammar.add_rule(
+            vec![
+                GrammarBranch {
+                    node: FnNode::Triple(
+                        Box::new(FnNode::Rule(c)),
+                        Box::new(FnNode::Rule(c)),
+                        Box::new(FnNode::Rule(c)),
+                    ),
+                    weight: 1,
+                },
+                GrammarBranch {
+                    node: FnNode::Triple(
+                        Box::new(FnNode::Rule(a)),
+                        Box::new(FnNode::Rule(c)),
+                        Box::new(FnNode::Rule(a)),
+                    ),
+                    weight: 1,
+                },
+            ],
+            "E",
+        );
+        let _ = grammar.add_rule(
+            vec![
+                GrammarBranch {
+                    node: FnNode::Random,
+                    weight: 1,
+                },
+                GrammarBranch {
+                    node: FnNode::X,
+                    weight: 1,
+                },
+                GrammarBranch {
+                    node: FnNode::Y,
+                    weight: 1,
+                },
+                GrammarBranch {
+                    node: FnNode::T,
+                    weight: 1,
+                },
+                GrammarBranch {
+                    node: FnNode::Unary(
+                        UnaryOp::Sqrt,
+                        Box::new(FnNode::Arithmetic(
+                            Box::new(FnNode::Arithmetic(
+                                Box::new(FnNode::X),
+                                ArithmeticOp::Mul,
+                                Box::new(FnNode::X),
+                            )),
+                            ArithmeticOp::Add,
+                            Box::new(FnNode::Arithmetic(
+                                Box::new(FnNode::Y),
+                                ArithmeticOp::Mul,
+                                Box::new(FnNode::Y),
+                            )),
+                        )),
+                    ),
+                    weight: 2,
+                },
+            ],
+            "A",
+        );
+        let _ = grammar.add_rule(
+            vec![
+                GrammarBranch {
+                    node: FnNode::Rule(a),
+                    weight: 2,
+                },
+                GrammarBranch {
+                    node: FnNode::Arithmetic(
+                        Box::new(FnNode::Rule(c)),
+                        ArithmeticOp::Add,
+                        Box::new(FnNode::Rule(c)),
+                    ),
+                    weight: 3,
+                },
+                GrammarBranch {
+                    node: FnNode::Arithmetic(
+                        Box::new(FnNode::Rule(c)),
+                        ArithmeticOp::Mul,
+                        Box::new(FnNode::Rule(c)),
+                    ),
+                    weight: 3,
+                },
+            ],
+            "C",
+        );
+        grammar
     }
 }
 

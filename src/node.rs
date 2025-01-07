@@ -18,7 +18,7 @@
 
 use std::fmt::Display;
 
-use image::{self as img};
+use image::{self as img, buffer};
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 944;
@@ -108,7 +108,11 @@ pub struct Color {
 }
 
 impl FnNode {
+    const OPTIMIZED: bool = false;
     pub fn optimize(&mut self) -> Result<(), String> {
+        if Self::OPTIMIZED {
+            return Ok(());
+        }
         match self {
             FnNode::X | FnNode::Y | FnNode::T | FnNode::Boolean(_) | FnNode::Number(_) => Ok(()),
 
@@ -330,6 +334,121 @@ impl FnNode {
         Ok(())
     }
 
+    pub fn compile_to_glsl_fs(&mut self) -> Result<String, String> {
+        self.optimize()?;
+
+        let mut default_fs = String::from(
+            r#"
+#version 330
+
+in vec2 fragTexCoord;
+out vec4 finalColor;
+uniform float time;
+
+vec4 map_rgb(vec3 rgb) {
+    return vec4(rgb + 1/2, 1);
+}
+
+void main() {
+    float x = fragTexCoord.x;
+    float y = fragTexCoord.y;
+    float t = sin(time);
+    finalColor = map_rgb(%s);
+}
+        "#,
+        );
+
+        let mut compiled_node = String::new();
+        match self.compile_to_glsl_fs_expr(&mut compiled_node) {
+            Ok(_) => {
+                default_fs = default_fs.replace("%s", &compiled_node.as_str());
+                Ok(default_fs.to_string())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn compile_to_glsl_fs_expr(&self, buffer: &mut String) -> Result<(), String> {
+        match self {
+            FnNode::X => buffer.push_str("x"),
+            FnNode::Y => buffer.push_str("y"),
+            FnNode::T => buffer.push_str("t"),
+            FnNode::Number(val) => buffer.push_str(&format!("({})", val.to_string())),
+            FnNode::Boolean(val) => match val {
+                true => buffer.push_str("true"),
+                false => buffer.push_str("false"),
+            },
+
+            FnNode::Random | FnNode::Rule(_) => {
+                return Err("Rule node encountered during GLSL compilation".to_string())
+            }
+
+            FnNode::Unary(kind, expr) => {
+                buffer.push_str(match kind {
+                    UnaryOp::Sqrt => "sqrt(",
+                    UnaryOp::Abs => "abs(",
+                    UnaryOp::Sin => "sin(",
+                    UnaryOp::Cos => "cos(",
+                    UnaryOp::Tan => "tan(",
+                });
+                expr.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(")");
+            }
+
+            FnNode::Arithmetic(a, kind, b) => {
+                buffer.push_str("(");
+                a.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(match kind {
+                    ArithmeticOp::Add => " + ",
+                    ArithmeticOp::Sub => " - ",
+                    ArithmeticOp::Mul => " * ",
+                    ArithmeticOp::Div => " / ",
+                    ArithmeticOp::Mod => " % ",
+                });
+                b.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(")");
+            }
+
+            FnNode::Compare(a, kind, b) => {
+                buffer.push_str("(");
+                a.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(match kind {
+                    CompareOp::GreaterThanEqual => " >= ",
+                    CompareOp::GreaterThan => " > ",
+                    CompareOp::LessThanEqual => " <= ",
+                    CompareOp::LessThan => " < ",
+                    CompareOp::Equal => " == ",
+                    CompareOp::NotEqual => " != ",
+                });
+                b.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(")");
+            }
+
+            FnNode::If(cond, then, elze) => {
+                buffer.push_str("((");
+                cond.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(") ? (");
+                then.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(") : (");
+                elze.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str("))");
+            }
+
+            FnNode::Triple(r, g, b) => {
+                buffer.push_str("vec3(");
+                r.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(", ");
+                g.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(", ");
+                b.compile_to_glsl_fs_expr(buffer)?;
+                buffer.push_str(")");
+            }
+        }
+        Ok(())
+    }
+}
+
+impl FnNode {
     #[allow(dead_code)]
     fn fmt_with_indent(&self, f: &mut std::fmt::Formatter<'_>, indent: usize) -> std::fmt::Result {
         let indent_str = "  ".repeat(indent);

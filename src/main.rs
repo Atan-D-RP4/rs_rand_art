@@ -2,113 +2,308 @@ mod grammar;
 mod node;
 mod simple;
 
-use crate::grammar::{Grammar, GrammarBranch};
-use crate::node::{ArithmeticOp, FnNode /*CompareOp*/, UnaryOp};
+extern crate gl;
+extern crate glfw;
 
-fn gen_fn_from_grammar() -> Option<FnNode> {
-    // let e = 0;
-    let a = 1;
-    let c = 2;
+use gl::types::*;
+use gl::FRAGMENT_SHADER;
+use glfw::{Action, Context, Key, Modifiers};
 
-    let mut grammar = Grammar::new();
-    let _ = grammar.add_rule(
-        vec![
-            GrammarBranch {
-                node: FnNode::Triple(
-                    Box::new(FnNode::Rule(c)),
-                    Box::new(FnNode::Rule(c)),
-                    Box::new(FnNode::Rule(c)),
-                ),
-                weight: 1,
-            },
-            GrammarBranch {
-                node: FnNode::Triple(
-                    Box::new(FnNode::Rule(a)),
-                    Box::new(FnNode::Rule(c)),
-                    Box::new(FnNode::Rule(a)),
-                ),
-                weight: 1,
-            },
-        ],
-        "E",
-    );
-    let _ = grammar.add_rule(
-        vec![
-            GrammarBranch {
-                node: FnNode::Random,
-                weight: 1,
-            },
-            GrammarBranch {
-                node: FnNode::X,
-                weight: 1,
-            },
-            GrammarBranch {
-                node: FnNode::Y,
-                weight: 1,
-            },
-            GrammarBranch {
-                node: FnNode::Unary(
-                    UnaryOp::Sqrt,
-                    Box::new(FnNode::Arithmetic(
-                        Box::new(FnNode::Arithmetic(
-                            Box::new(FnNode::X),
-                            ArithmeticOp::Mul,
-                            Box::new(FnNode::X),
-                        )),
-                        ArithmeticOp::Add,
-                        Box::new(FnNode::Arithmetic(
-                            Box::new(FnNode::Y),
-                            ArithmeticOp::Mul,
-                            Box::new(FnNode::Y),
-                        )),
-                    )),
-                ),
-                weight: 2,
-            },
-            // GrammarBranch {
-            //     node: FnNode::T,
-            //     weight: 1,
-            // },
-        ],
-        "A",
-    );
-    let _ = grammar.add_rule(
-        vec![
-            GrammarBranch {
-                node: FnNode::Rule(a),
-                weight: 2,
-            },
-            GrammarBranch {
-                node: FnNode::Arithmetic(
-                    Box::new(FnNode::Rule(c)),
-                    ArithmeticOp::Add,
-                    Box::new(FnNode::Rule(c)),
-                ),
-                weight: 3,
-            },
-            GrammarBranch {
-                node: FnNode::Arithmetic(
-                    Box::new(FnNode::Rule(c)),
-                    ArithmeticOp::Mul,
-                    Box::new(FnNode::Rule(c)),
-                ),
-                weight: 3,
-            },
-        ],
-        "C",
-    );
-    println!("{}\n", grammar);
+use std::ffi::CString;
+use std::mem;
+use std::os::raw::c_void;
+use std::ptr;
+use std::str;
 
-    grammar.gen_rule(0, 12)
+const SCR_WIDTH: u32 = 800;
+const SCR_HEIGHT: u32 = 600;
+
+const VERTEX_SHADER_SOURCE: &str = r#"
+#version 330
+
+in vec3 vertexPosition;
+in vec2 vertexTexCoord;
+in vec4 vertexColor;
+
+out vec2 fragTexCoord;
+out vec4 fragColor;
+uniform mat4 mvp;
+
+void main()
+{
+    fragTexCoord = vertexTexCoord;
+    fragColor = vertexColor;
+    gl_Position = mvp*vec4(vertexPosition, 1.0);
+}
+"#;
+
+fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
+    unsafe {
+        let shader = gl::CreateShader(shader_type);
+        let c_str = CString::new(source.as_bytes()).unwrap();
+        gl::ShaderSource(shader, 1, &c_str.as_ptr(), ptr::null());
+        gl::CompileShader(shader);
+
+        // Check for shader compile errors
+        let mut success = gl::FALSE as GLint;
+        let mut info_log = Vec::with_capacity(512);
+        info_log.set_len(512 - 1);
+        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
+        if success != gl::TRUE as GLint {
+            gl::GetShaderInfoLog(
+                shader,
+                512,
+                ptr::null_mut(),
+                info_log.as_mut_ptr() as *mut GLchar,
+            );
+            println!(
+                "ERROR::SHADER::COMPILATION_FAILED\n{}",
+                str::from_utf8(&info_log).unwrap()
+            );
+        }
+        shader
+    }
+}
+
+fn get_random_fs() -> Result<String, String> {
+    use crate::grammar::Grammar;
+    let grammar = Grammar::default();
+    let mut func = match grammar.gen_from_rule(0, 20) {
+        Some(f) => f,
+        _ => return Err("Failed to generate function".to_string()),
+    };
+    func.optimize()?;
+    // println!("Function:");
+    // println!("{}", func);
+    func.compile_to_glsl_fs()
 }
 
 fn main() -> Result<(), String> {
-    let mut func = gen_fn_from_grammar().unwrap();
-    func.optimize()?;
-    println!("Function:");
-    println!("{}", func);
-    /*
+    use glfw::fail_on_errors;
+
+    let mut glfw = glfw::init(fail_on_errors!()).unwrap();
+    glfw.window_hint(glfw::WindowHint::ContextVersion(4, 5));
+    glfw.window_hint(glfw::WindowHint::OpenGlProfile(
+        glfw::OpenGlProfileHint::Core,
+    ));
+
+    #[cfg(target_os = "macos")]
+    glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
+
+    // Create a windowed mode window and its OpenGL context
+    let (mut window, events) = glfw
+        .create_window(
+            SCR_WIDTH,
+            SCR_HEIGHT,
+            "Randow Shader",
+            glfw::WindowMode::Windowed,
+        )
+        .expect("Failed to create GLFW window.");
+
+    // Make the window's context current
+    window.make_current();
+    window.set_key_polling(true);
+    window.set_framebuffer_size_polling(true);
+    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
+
+    let (shader_program, vao) = unsafe {
+        let vertex_shader = compile_shader(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER);
+        let FRAGMENT_SHADER_SOURCE = &get_random_fs()?;
+        // println!("{}", FRAGMENT_SHADER_SOURCE);
+        let fragment_shader = compile_shader(&FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER);
+        let shader_program = gl::CreateProgram();
+        gl::AttachShader(shader_program, vertex_shader);
+        gl::AttachShader(shader_program, fragment_shader);
+        gl::LinkProgram(shader_program);
+
+        // Check for linking errors
+        let mut success = gl::FALSE as GLint;
+        let mut info_log = Vec::with_capacity(512);
+        info_log.set_len(512 - 1);
+        gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
+        if success != gl::TRUE as GLint {
+            gl::GetProgramInfoLog(
+                shader_program,
+                512,
+                ptr::null_mut(),
+                info_log.as_mut_ptr() as *mut GLchar,
+            );
+            println!(
+                "ERROR::SHADER::PROGRAM::LINKING_FAILED\n{}",
+                str::from_utf8(&info_log).unwrap()
+            );
+        }
+
+        // Clean up shaders
+        gl::DeleteShader(vertex_shader);
+        gl::DeleteShader(fragment_shader);
+
+        // Set up vertex data
+        let vertices: [f32; 20] = [
+            // positions     // texture coords  // colors
+            1.0, 1.0, 0.0, 1.0, 1.0, // top right
+            1.0, -1.0, 0.0, 1.0, -1.0, // bottom right
+            -1.0, -1.0, 0.0, -1.0, -1.0, // bottom left
+            -1.0, 1.0, 0.0, -1.0, 1.0, // top left
+        ];
+        let indices = [
+            0, 1, 3, // first triangle
+            1, 2, 3, // second triangle
+        ];
+
+        let (mut vbo, mut vao, mut ebo) = (0, 0, 0);
+        gl::GenVertexArrays(1, &mut vao);
+        gl::GenBuffers(1, &mut vbo);
+        gl::GenBuffers(1, &mut ebo);
+
+        gl::BindVertexArray(vao);
+
+        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            (vertices.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
+            vertices.as_ptr() as *const c_void,
+            gl::STATIC_DRAW,
+        );
+
+        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+        gl::BufferData(
+            gl::ELEMENT_ARRAY_BUFFER,
+            (indices.len() * mem::size_of::<GLuint>()) as GLsizeiptr,
+            indices.as_ptr() as *const c_void,
+            gl::STATIC_DRAW,
+        );
+
+        // Position attribute
+        gl::VertexAttribPointer(
+            0,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            5 * mem::size_of::<GLfloat>() as GLsizei,
+            ptr::null(),
+        );
+        gl::EnableVertexAttribArray(0);
+
+        // Texture coord attribute
+        gl::VertexAttribPointer(
+            1,
+            2,
+            gl::FLOAT,
+            gl::FALSE,
+            5 * mem::size_of::<GLfloat>() as GLsizei,
+            (3 * mem::size_of::<GLfloat>()) as *const c_void,
+        );
+        gl::EnableVertexAttribArray(1);
+        (shader_program, vao)
+    };
+    // Get the location of the time uniform
+    let time_location =
+        unsafe { gl::GetUniformLocation(shader_program, CString::new("time").unwrap().as_ptr()) };
+
+    // Store the initial time
+    let initial_time = glfw.get_time();
+
+    // Loop until the user closes the window
+    while !window.should_close() {
+        // Swap front and back buffers
+        glfw.poll_events();
+        window.swap_buffers();
+        // Clear the screen
+        unsafe {
+            gl::ClearColor(0.9, 0.3, 0.6, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            // Render
+            gl::UseProgram(shader_program);
+
+            // Update time uniform
+            let current_time = glfw.get_time() - initial_time;
+            gl::Uniform1f(time_location, current_time as f32);
+
+            // Set MVP matrix (identity for now)
+            let mvp_location =
+                gl::GetUniformLocation(shader_program, CString::new("mvp").unwrap().as_ptr());
+            let identity: [f32; 16] = [
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ];
+            gl::UniformMatrix4fv(mvp_location, 1, gl::FALSE, identity.as_ptr());
+
+            gl::BindVertexArray(vao);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
+        }
+
+        // Poll for and process events
+        // event_handler
+        event_handler(&mut glfw, &mut window, &events);
+    }
     Ok(())
-    */
-    func.render()
+}
+
+fn event_handler(
+    glfw: &mut glfw::Glfw,
+    window: &mut glfw::Window,
+    events: &glfw::GlfwReceiver<(f64, glfw::WindowEvent)>,
+) {
+    for (_, event) in glfw::flush_messages(&events) {
+        println!("{:?}", event);
+        match event {
+            glfw::WindowEvent::FramebufferSize(width, height) => {
+                // make sure the viewport matches the new window dimensions; note that width and
+                // height will be significantly larger than specified on retina displays.
+                unsafe { gl::Viewport(0, 0, width, height) }
+            }
+            glfw::WindowEvent::Key(Key::S, _, Action::Press, _) => {
+                window.restore();
+                println!("restored");
+            }
+            glfw::WindowEvent::Key(Key::Enter, _, Action::Press, Modifiers::Control) => {
+                if window.with_window_mode(|mode| match mode {
+                    glfw::WindowMode::Windowed => true,
+                    _ => false,
+                }) {
+                    glfw.with_primary_monitor(|_, monitor| {
+                        let monitor = monitor.unwrap();
+                        window.set_monitor(
+                            glfw::WindowMode::FullScreen(monitor),
+                            0,
+                            0,
+                            SCR_WIDTH,
+                            SCR_HEIGHT,
+                            Some(60),
+                        );
+                    });
+                } else {
+                    window.set_monitor(
+                        glfw::WindowMode::Windowed,
+                        0,
+                        0,
+                        SCR_WIDTH,
+                        SCR_HEIGHT,
+                        Some(60),
+                    );
+                }
+            }
+            glfw::WindowEvent::Key(Key::F, _, Action::Press, _) => {
+                // println!("{:?}", modifier);
+                if window.with_window_mode(|mode| match mode {
+                    glfw::WindowMode::Windowed => true,
+                    _ => false,
+                }) {
+                    match window.is_maximized() {
+                        true => window.restore(),
+                        false => window.maximize(),
+                    }
+                }
+            }
+            glfw::WindowEvent::Key(Key::M, _, Action::Press, _) => match window.is_iconified() {
+                true => window.restore(),
+                false => window.iconify(),
+            },
+            glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+                window.set_should_close(true)
+            }
+            _ => {}
+        }
+    }
 }

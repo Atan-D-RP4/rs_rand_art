@@ -1,7 +1,7 @@
 use image::{self as img};
 
-const WIDTH: u32 = 400;
-const HEIGHT: u32 = 400;
+const WIDTH: i32 = 400;
+const HEIGHT: i32 = 400;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -62,11 +62,11 @@ fn split4(x: f32, y: f32) -> Color {
 
 #[allow(dead_code)]
 fn render(function: fn(x: f32, y: f32) -> Color) {
-    let mut img = img::ImageBuffer::new(WIDTH, HEIGHT);
+    let mut img = img::ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
     for y in 0..HEIGHT {
-        let ny = y as f32 / (HEIGHT as f32) * 2.0 - 1.0;
+        let ny = (y as i32 / (HEIGHT as i32)) as f32 * 2.0 - 1.0;
         for x in 0..WIDTH {
-            let nx = x as f32 / (WIDTH as f32) * 2.0 - 1.0;
+            let nx = (x as i32 / (WIDTH as i32)) as f32 * 2.0 - 1.0;
             let color = function(nx, ny);
             img.put_pixel(
                 x as u32,
