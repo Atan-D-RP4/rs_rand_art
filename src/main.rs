@@ -1,5 +1,7 @@
 extern crate gl;
 extern crate glfw;
+mod grammar;
+mod node;
 
 use gl::types::*;
 use glfw::{Action, Context, Key, Modifiers};
@@ -62,7 +64,7 @@ fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
 }
 
 fn get_random_fs() -> Result<String, String> {
-    use hash_vis::grammar::Grammar;
+    use crate::grammar::Grammar;
     let grammar = Grammar::default();
     let mut func = match grammar.gen_from_rule(0, 10) {
         Some(f) => f,
