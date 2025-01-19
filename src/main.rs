@@ -1,12 +1,7 @@
-mod grammar;
-mod node;
-mod simple;
-
 extern crate gl;
 extern crate glfw;
 
 use gl::types::*;
-use gl::FRAGMENT_SHADER;
 use glfw::{Action, Context, Key, Modifiers};
 
 use std::ffi::CString;
@@ -56,7 +51,8 @@ fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
                 ptr::null_mut(),
                 info_log.as_mut_ptr() as *mut GLchar,
             );
-            println!(
+            eprintln!("Shader source: {:?}", source);
+            eprintln!(
                 "ERROR::SHADER::COMPILATION_FAILED\n{}",
                 str::from_utf8(&info_log).unwrap()
             );
@@ -66,18 +62,21 @@ fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
 }
 
 fn get_random_fs() -> Result<String, String> {
-    use crate::grammar::Grammar;
+    use hash_vis::grammar::Grammar;
     let grammar = Grammar::default();
-    let mut func = match grammar.gen_from_rule(0, 20) {
+    let mut func = match grammar.gen_from_rule(0, 10) {
         Some(f) => f,
         _ => return Err("Failed to generate function".to_string()),
     };
+    println!("Function:");
+    println!("{}", func);
     func.optimize()?;
-    // println!("Function:");
-    // println!("{}", func);
+    println!("Optimized Function:");
+    println!("{}", func);
     func.compile_to_glsl_fs()
 }
 
+#[allow(non_snake_case)]
 fn main() -> Result<(), String> {
     use glfw::fail_on_errors;
 
@@ -95,7 +94,7 @@ fn main() -> Result<(), String> {
         .create_window(
             SCR_WIDTH,
             SCR_HEIGHT,
-            "Randow Shader",
+            "Random Shader",
             glfw::WindowMode::Windowed,
         )
         .expect("Failed to create GLFW window.");
@@ -198,8 +197,10 @@ fn main() -> Result<(), String> {
         (shader_program, vao)
     };
     // Get the location of the time uniform
-    let time_location =
-        unsafe { gl::GetUniformLocation(shader_program, CString::new("time").unwrap().as_ptr()) };
+    let time_location = unsafe {
+        let time = CString::new("time").unwrap();
+        gl::GetUniformLocation(shader_program, time.as_ptr())
+    };
 
     // Store the initial time
     let initial_time = glfw.get_time();
@@ -222,8 +223,10 @@ fn main() -> Result<(), String> {
             gl::Uniform1f(time_location, current_time as f32);
 
             // Set MVP matrix (identity for now)
-            let mvp_location =
-                gl::GetUniformLocation(shader_program, CString::new("mvp").unwrap().as_ptr());
+            let mvp_location = {
+                let mvp = CString::new("mvp").unwrap();
+                gl::GetUniformLocation(shader_program, mvp.as_ptr())
+            };
             let identity: [f32; 16] = [
                 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
             ];

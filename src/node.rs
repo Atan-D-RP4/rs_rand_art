@@ -114,6 +114,11 @@ impl FnNode {
             return Ok(());
         }
         match self {
+            FnNode::Number(val) if val.is_nan() => {
+                eprintln!("NaN encountered during optimization");
+                *self = FnNode::Number(0.0);
+                Ok(())
+            }
             FnNode::X | FnNode::Y | FnNode::T | FnNode::Boolean(_) | FnNode::Number(_) => Ok(()),
 
             FnNode::Random | FnNode::Rule(_) => {
@@ -352,7 +357,7 @@ vec4 map_rgb(vec3 rgb) {
 void main() {
     float x = fragTexCoord.x;
     float y = fragTexCoord.y;
-    float t = sin(time);
+    float t = tan(time);
     finalColor = map_rgb(%s);
 }
         "#,
@@ -397,15 +402,21 @@ void main() {
 
             FnNode::Arithmetic(a, kind, b) => {
                 buffer.push_str("(");
+                if let ArithmeticOp::Mod = kind {
+                    buffer.push_str("mod(");
+                }
                 a.compile_to_glsl_fs_expr(buffer)?;
                 buffer.push_str(match kind {
                     ArithmeticOp::Add => " + ",
                     ArithmeticOp::Sub => " - ",
                     ArithmeticOp::Mul => " * ",
                     ArithmeticOp::Div => " / ",
-                    ArithmeticOp::Mod => " % ",
+                    ArithmeticOp::Mod => ", ",
                 });
                 b.compile_to_glsl_fs_expr(buffer)?;
+                if let ArithmeticOp::Mod = kind {
+                    buffer.push_str(")");
+                }
                 buffer.push_str(")");
             }
 

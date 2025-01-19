@@ -5,6 +5,11 @@ edition = "2021"
 
 [dependencies]
 gl = "0.14.0"
+# glfw = { version = "0.*" , git = "https://github.com/ArtemisX64/glfw-rs-tmux"}
 glfw = "0.59.0"
 image = "0.25.5"
+logos = "0.15.0"
 rand = "0.8.5"
+
+[profile.dev.package.image]         # Modify profile settings via config.
+opt-level = 3            # Optimization level.

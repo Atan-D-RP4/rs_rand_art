@@ -2,7 +2,7 @@ use crate::node::FnNode;
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
-pub struct GrammarBranch {
+pub struct Branch {
     pub node: FnNode,
     pub weight: usize,
 }
@@ -10,7 +10,7 @@ pub struct GrammarBranch {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Rule {
-    branches: Vec<GrammarBranch>,
+    branches: Vec<Branch>,
     weight_sum: usize,
 }
 
@@ -18,6 +18,12 @@ pub struct Rule {
 pub struct Grammar {
     pub symbols: Vec<&'static str>,
     pub rules: Vec<Rule>,
+}
+
+impl Branch {
+    pub fn new(node: FnNode, weight: usize) -> Self {
+        Branch { node, weight }
+    }
 }
 
 #[allow(dead_code)]
@@ -31,7 +37,7 @@ impl Grammar {
 
     pub fn add_rule(
         &mut self,
-        branches: Vec<GrammarBranch>,
+        branches: Vec<Branch>,
         symbol: &'static str,
     ) -> Result<(), &'static str> {
         if branches.is_empty() {
@@ -138,91 +144,78 @@ impl Default for Grammar {
         // let e = 0;
         let a = 1;
         let c = 2;
+        /*
+        # Entry
+        E | vec3(C, C, C)
+          ;
+
+        # Terminal
+        A | random
+          | x
+          | y
+          | t
+          | abs(x)
+          | abs(y)
+          | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
+          ;
+
+        # Expressions
+        C ||  A
+          ||| add(C, C)
+          ||| mult(C, C)
+          | sqrt(abs(C))
+          #||| abs(C)
+          #||| sin(C)
+          ;
+
+        */
 
         let mut grammar = Grammar::new();
         let _ = grammar.add_rule(
             vec![
-                GrammarBranch {
-                    node: FnNode::Triple(
-                        Box::new(FnNode::Rule(c)),
-                        Box::new(FnNode::Rule(c)),
-                        Box::new(FnNode::Rule(c)),
-                    ),
-                    weight: 1,
-                },
-                GrammarBranch {
-                    node: FnNode::Triple(
-                        Box::new(FnNode::Rule(a)),
-                        Box::new(FnNode::Rule(c)),
-                        Box::new(FnNode::Rule(a)),
-                    ),
-                    weight: 1,
-                },
+                Branch::new(
+                    FnNode::triple(FnNode::Rule(c), FnNode::Rule(c), FnNode::Rule(c)),
+                    1,
+                ),
+                Branch::new(
+                    FnNode::triple(FnNode::Rule(a), FnNode::Rule(c), FnNode::Rule(a)),
+                    1,
+                ),
             ],
             "E",
         );
         let _ = grammar.add_rule(
             vec![
-                GrammarBranch {
-                    node: FnNode::Random,
-                    weight: 1,
-                },
-                GrammarBranch {
-                    node: FnNode::X,
-                    weight: 1,
-                },
-                GrammarBranch {
-                    node: FnNode::Y,
-                    weight: 1,
-                },
-                GrammarBranch {
-                    node: FnNode::T,
-                    weight: 1,
-                },
-                GrammarBranch {
-                    node: FnNode::Unary(
+                Branch::new(FnNode::Random, 1),
+                Branch::new(FnNode::X, 1),
+                Branch::new(FnNode::Y, 1),
+                Branch::new(FnNode::T, 1),
+                Branch::new(
+                    FnNode::unary(
                         UnaryOp::Sqrt,
-                        Box::new(FnNode::Arithmetic(
-                            Box::new(FnNode::Arithmetic(
-                                Box::new(FnNode::X),
-                                ArithmeticOp::Mul,
-                                Box::new(FnNode::X),
-                            )),
+                        FnNode::arithmetic(
+                            FnNode::arithmetic(FnNode::X, ArithmeticOp::Mul, FnNode::X),
                             ArithmeticOp::Add,
-                            Box::new(FnNode::Arithmetic(
-                                Box::new(FnNode::Y),
-                                ArithmeticOp::Mul,
-                                Box::new(FnNode::Y),
-                            )),
-                        )),
+                            FnNode::arithmetic(FnNode::Y, ArithmeticOp::Mul, FnNode::Y),
+                        ),
                     ),
-                    weight: 2,
-                },
+                    2,
+                ),
             ],
             "A",
         );
         let _ = grammar.add_rule(
             vec![
-                GrammarBranch {
-                    node: FnNode::Rule(a),
-                    weight: 2,
-                },
-                GrammarBranch {
-                    node: FnNode::Arithmetic(
-                        Box::new(FnNode::Rule(c)),
-                        ArithmeticOp::Add,
-                        Box::new(FnNode::Rule(c)),
-                    ),
-                    weight: 3,
-                },
-                GrammarBranch {
-                    node: FnNode::Arithmetic(
-                        Box::new(FnNode::Rule(c)),
-                        ArithmeticOp::Mul,
-                        Box::new(FnNode::Rule(c)),
-                    ),
-                    weight: 3,
-                },
+                Branch::new(FnNode::Rule(a), 2),
+                Branch::new(
+                    FnNode::arithmetic(FnNode::Rule(c), ArithmeticOp::Add, FnNode::Rule(c)),
+                    3,
+                ),
+                Branch::new(
+                    FnNode::arithmetic(FnNode::Rule(c), ArithmeticOp::Mul, FnNode::Rule(c)),
+                    3,
+                ),
+                Branch::new(FnNode::unary(UnaryOp::Sqrt, FnNode::unary(UnaryOp::Abs, FnNode::Rule(c))), 3)
             ],
             "C",
         );
