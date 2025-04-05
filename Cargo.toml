@@ -5,11 +5,57 @@ edition = "2021"
 
 [dependencies]
 gl = "0.14.0"
-# glfw = { version = "0.*" , git = "https://github.com/ArtemisX64/glfw-rs-tmux"}
 glfw = "0.59.0"
 image = "0.25.5"
 logos = "0.15.0"
 rand = "0.8.5"
 
 [profile.dev.package.image]         # Modify profile settings via config.
-opt-level = 3            # Optimization level.
+opt-level = 3                       # Optimization level.
+
+[lints.rust]
+arithmetic_overflow = "deny"        # Prevent operations that would cause integer overflow
+
+[lints.clippy]
+# --- Arithmetic ---
+checked_conversions = "deny"        # Suggest using checked conversions between numeric types
+cast_possible_truncation = "deny"   # Detect when casting might truncate a value
+cast_sign_loss = "deny"             # Detect when casting might lose sign information
+cast_possible_wrap = "deny"         # Detect when casting might cause value to wrap around
+cast_precision_loss = "deny"        # Detect when casting might lose precision
+integer_division = "deny"           # Highlight potential bugs from integer division truncation
+arithmetic_side_effects = "deny"    # Detect arithmetic operations with potential side effects
+unchecked_duration_subtraction = "deny" # Ensure duration subtraction won't cause underflow
+
+# --- Unwraps ---
+unwrap_used = "warn"                # Discourage using .unwrap() which can cause panics
+expect_used = "warn"                # Discourage using .expect() which can cause panics
+panicking_unwrap = "deny"           # Prevent unwrap on values known to cause panics
+option_env_unwrap = "deny"          # Prevent unwrapping environment variables which might be absent
+
+# --- Array indexing ---
+indexing_slicing = "deny"           # Avoid direct array indexing and use safer methods like .get()
+
+# --- Path handling ---
+join_absolute_paths = "deny"        # Prevent issues when joining paths with absolute paths
+
+# --- Serialization issues ---
+serde_api_misuse = "deny"           # Prevent incorrect usage of Serde's serialization/deserialization API
+
+# --- Unbounded input ---
+uninit_vec = "deny"                 # Prevent creating uninitialized vectors which is unsafe
+
+# --- Unsafe code detection ---
+transmute_int_to_char = "deny"      # Prevent unsafe transmutation from integers to characters
+transmute_int_to_float = "deny"     # Prevent unsafe transmutation from integers to floats
+transmute_ptr_to_ref = "deny"       # Prevent unsafe transmutation from pointers to references
+transmute_undefined_repr = "deny"   # Detect transmutes with potentially undefined representations
+must_use_candidate = "allow"
+missing_errors_doc = "allow"       # Warn about missing error documentation in functions
+
+pedantic = { level = "warn", priority = -1 }     # Enable all lints from the pedantic group for stricter code quality checks
+perf = { level = "warn", priority = -1 }         # Enable all lints from the perf group to identify performance improvements
+correctness = { level = "warn", priority = -1 }  # Enable all lints from the correctness group to catch potential bugs
+suspicious = { level = "warn", priority = -1 }   # Enable all lints from the suspicious group to flag potentially problematic code
+complexity = { level = "warn", priority = -1 }   # Enable all lints from the complexity group to reduce code complexity
+style = { level = "warn", priority = -1 }        # Enable all lints from the style group to enforce coding style guidelines

@@ -58,8 +58,11 @@ impl Grammar {
             return None;
         }
 
-        let rule = &self.rules[rule_idx];
-        let mut attempts = 100; // GEN_RULE_MAX_ATTEMPTS
+        let rule = &self.rules.get(rule_idx).or_else(|| {
+            eprintln!("Rule index out of bounds: {rule_idx}");
+            None
+        })?;
+        let mut attempts: i32 = 100; // GEN_RULE_MAX_ATTEMPTS
 
         while attempts > 0 {
             use rand::Rng;
@@ -67,7 +70,7 @@ impl Grammar {
             let mut t = 0.0;
 
             for branch in &rule.branches {
-                t += branch.weight as f32 / rule.weight_sum as f32;
+                t += branch.weight as f64 / rule.weight_sum as f64;
 
                 if t >= p {
                     let node = self.gen_node(&branch.node, depth);
@@ -77,7 +80,7 @@ impl Grammar {
                     }
                 }
             }
-            attempts -= 1;
+            attempts = attempts.checked_sub(1).unwrap_or(0);
         }
         None
     }
@@ -215,7 +218,10 @@ impl Default for Grammar {
                     FnNode::arithmetic(FnNode::Rule(c), ArithmeticOp::Mul, FnNode::Rule(c)),
                     3,
                 ),
-                Branch::new(FnNode::unary(UnaryOp::Sqrt, FnNode::unary(UnaryOp::Abs, FnNode::Rule(c))), 3)
+                Branch::new(
+                    FnNode::unary(UnaryOp::Sqrt, FnNode::unary(UnaryOp::Abs, FnNode::Rule(c))),
+                    3,
+                ),
             ],
             "C",
         );

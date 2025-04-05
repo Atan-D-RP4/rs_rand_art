@@ -366,7 +366,7 @@ void main() {
         let mut compiled_node = String::new();
         match self.compile_to_glsl_fs_expr(&mut compiled_node) {
             Ok(_) => {
-                default_fs = default_fs.replace("%s", &compiled_node.as_str());
+                default_fs = default_fs.replace("%s", compiled_node.as_str());
                 Ok(default_fs.to_string())
             }
             Err(e) => Err(e),
@@ -375,10 +375,10 @@ void main() {
 
     fn compile_to_glsl_fs_expr(&self, buffer: &mut String) -> Result<(), String> {
         match self {
-            FnNode::X => buffer.push_str("x"),
-            FnNode::Y => buffer.push_str("y"),
-            FnNode::T => buffer.push_str("t"),
-            FnNode::Number(val) => buffer.push_str(&format!("({})", val.to_string())),
+            FnNode::X => buffer.push('x'),
+            FnNode::Y => buffer.push('y'),
+            FnNode::T => buffer.push('t'),
+            FnNode::Number(val) => buffer.push_str(&format!("({})", val)),
             FnNode::Boolean(val) => match val {
                 true => buffer.push_str("true"),
                 false => buffer.push_str("false"),

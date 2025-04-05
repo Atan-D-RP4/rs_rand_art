@@ -3,7 +3,7 @@ extern crate glfw;
 mod grammar;
 mod node;
 
-use gl::types::*;
+use gl::types::{GLchar, GLenum, GLfloat, GLint, GLsizei, GLsizeiptr, GLuint};
 use glfw::{Action, Context, Key, Modifiers};
 
 use std::ffi::CString;
@@ -15,7 +15,7 @@ use std::str;
 const SCR_WIDTH: u32 = 800;
 const SCR_HEIGHT: u32 = 600;
 
-const VERTEX_SHADER_SOURCE: &str = r#"
+const VERTEX_SHADER_SOURCE: &str = r"
 #version 330
 
 in vec3 vertexPosition;
@@ -32,7 +32,7 @@ void main()
     fragColor = vertexColor;
     gl_Position = mvp*vec4(vertexPosition, 1.0);
 }
-"#;
+";
 
 fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
     unsafe {
@@ -42,18 +42,18 @@ fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
         gl::CompileShader(shader);
 
         // Check for shader compile errors
-        let mut success = gl::FALSE as GLint;
-        let mut info_log = Vec::with_capacity(512);
+        let mut success = GLint::from(gl::FALSE);
+        let mut info_log = vec![0; 512];
         info_log.set_len(512 - 1);
         gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
-        if success != gl::TRUE as GLint {
+        if success != GLint::from(gl::TRUE) {
             gl::GetShaderInfoLog(
                 shader,
                 512,
                 ptr::null_mut(),
-                info_log.as_mut_ptr() as *mut GLchar,
+                info_log.as_mut_ptr().cast::<GLchar>(),
             );
-            eprintln!("Shader source: {:?}", source);
+            eprintln!("Shader source: {source:?}");
             eprintln!(
                 "ERROR::SHADER::COMPILATION_FAILED\n{}",
                 str::from_utf8(&info_log).unwrap()
@@ -66,19 +66,19 @@ fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
 fn get_random_fs() -> Result<String, String> {
     use crate::grammar::Grammar;
     let grammar = Grammar::default();
-    let mut func = match grammar.gen_from_rule(0, 10) {
-        Some(f) => f,
-        _ => return Err("Failed to generate function".to_string()),
+    let Some(mut func) = grammar.gen_from_rule(0, 10) else {
+        return Err("Failed to generate function".to_string());
     };
     println!("Function:");
-    println!("{}", func);
+    println!("{func}");
     func.optimize()?;
     println!("Optimized Function:");
-    println!("{}", func);
+    println!("{func}");
     func.compile_to_glsl_fs()
 }
 
 #[allow(non_snake_case)]
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<(), String> {
     use glfw::fail_on_errors;
 
@@ -96,7 +96,7 @@ fn main() -> Result<(), String> {
         .create_window(
             SCR_WIDTH,
             SCR_HEIGHT,
-            "Random Shader",
+            "Randow Shader",
             glfw::WindowMode::Windowed,
         )
         .expect("Failed to create GLFW window.");
@@ -105,29 +105,29 @@ fn main() -> Result<(), String> {
     window.make_current();
     window.set_key_polling(true);
     window.set_framebuffer_size_polling(true);
-    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
+    gl::load_with(|symbol| -> *const std::ffi::c_void { window.get_proc_address(symbol).cast() });
 
     let (shader_program, vao) = unsafe {
         let vertex_shader = compile_shader(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER);
         let FRAGMENT_SHADER_SOURCE = &get_random_fs()?;
         // println!("{}", FRAGMENT_SHADER_SOURCE);
-        let fragment_shader = compile_shader(&FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER);
+        let fragment_shader = compile_shader(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER);
         let shader_program = gl::CreateProgram();
         gl::AttachShader(shader_program, vertex_shader);
         gl::AttachShader(shader_program, fragment_shader);
         gl::LinkProgram(shader_program);
 
         // Check for linking errors
-        let mut success = gl::FALSE as GLint;
-        let mut info_log = Vec::with_capacity(512);
+        let mut success = GLint::from(gl::FALSE);
+        let mut info_log = vec![0; 512];
         info_log.set_len(512 - 1);
         gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
-        if success != gl::TRUE as GLint {
+        if success != GLint::from(gl::TRUE) {
             gl::GetProgramInfoLog(
                 shader_program,
                 512,
                 ptr::null_mut(),
-                info_log.as_mut_ptr() as *mut GLchar,
+                info_log.as_mut_ptr().cast::<GLchar>(),
             );
             println!(
                 "ERROR::SHADER::PROGRAM::LINKING_FAILED\n{}",
@@ -162,16 +162,16 @@ fn main() -> Result<(), String> {
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
-            (vertices.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-            vertices.as_ptr() as *const c_void,
+            GLsizeiptr::try_from(vertices.len() * mem::size_of::<GLfloat>()).unwrap(),
+            vertices.as_ptr().cast::<c_void>(),
             gl::STATIC_DRAW,
         );
 
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
         gl::BufferData(
             gl::ELEMENT_ARRAY_BUFFER,
-            (indices.len() * mem::size_of::<GLuint>()) as GLsizeiptr,
-            indices.as_ptr() as *const c_void,
+            GLsizeiptr::try_from(indices.len() * mem::size_of::<GLuint>()).unwrap(),
+            indices.as_ptr().cast::<c_void>(),
             gl::STATIC_DRAW,
         );
 
@@ -181,7 +181,7 @@ fn main() -> Result<(), String> {
             3,
             gl::FLOAT,
             gl::FALSE,
-            5 * mem::size_of::<GLfloat>() as GLsizei,
+            5 * GLsizei::try_from(mem::size_of::<GLfloat>()).unwrap(),
             ptr::null(),
         );
         gl::EnableVertexAttribArray(0);
@@ -192,7 +192,7 @@ fn main() -> Result<(), String> {
             2,
             gl::FLOAT,
             gl::FALSE,
-            5 * mem::size_of::<GLfloat>() as GLsizei,
+            5 * GLsizei::try_from(mem::size_of::<GLfloat>()).unwrap(),
             (3 * mem::size_of::<GLfloat>()) as *const c_void,
         );
         gl::EnableVertexAttribArray(1);
@@ -242,6 +242,7 @@ fn main() -> Result<(), String> {
         // event_handler
         event_handler(&mut glfw, &mut window, &events);
     }
+
     Ok(())
 }
 
@@ -250,8 +251,8 @@ fn event_handler(
     window: &mut glfw::Window,
     events: &glfw::GlfwReceiver<(f64, glfw::WindowEvent)>,
 ) {
-    for (_, event) in glfw::flush_messages(&events) {
-        println!("{:?}", event);
+    for (_, event) in glfw::flush_messages(events) {
+        println!("{event:?}");
         match event {
             glfw::WindowEvent::FramebufferSize(width, height) => {
                 // make sure the viewport matches the new window dimensions; note that width and
@@ -263,10 +264,7 @@ fn event_handler(
                 println!("restored");
             }
             glfw::WindowEvent::Key(Key::Enter, _, Action::Press, Modifiers::Control) => {
-                if window.with_window_mode(|mode| match mode {
-                    glfw::WindowMode::Windowed => true,
-                    _ => false,
-                }) {
+                if window.with_window_mode(|mode| matches!(mode, glfw::WindowMode::Windowed)) {
                     glfw.with_primary_monitor(|_, monitor| {
                         let monitor = monitor.unwrap();
                         window.set_monitor(
@@ -291,22 +289,23 @@ fn event_handler(
             }
             glfw::WindowEvent::Key(Key::F, _, Action::Press, _) => {
                 // println!("{:?}", modifier);
-                if window.with_window_mode(|mode| match mode {
-                    glfw::WindowMode::Windowed => true,
-                    _ => false,
-                }) {
-                    match window.is_maximized() {
-                        true => window.restore(),
-                        false => window.maximize(),
+                if window.with_window_mode(|mode| matches!(mode, glfw::WindowMode::Windowed)) {
+                    if window.is_maximized() {
+                        window.restore();
+                    } else {
+                        window.maximize();
                     }
                 }
             }
-            glfw::WindowEvent::Key(Key::M, _, Action::Press, _) => match window.is_iconified() {
-                true => window.restore(),
-                false => window.iconify(),
-            },
+            glfw::WindowEvent::Key(Key::M, _, Action::Press, _) => {
+                if window.is_iconified() {
+                    window.restore();
+                } else {
+                    window.iconify();
+                }
+            }
             glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                window.set_should_close(true)
+                window.set_should_close(true);
             }
             _ => {}
         }
