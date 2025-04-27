@@ -1,4 +1,5 @@
 use crate::node::FnNode;
+use std::collections::HashMap;
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
@@ -10,19 +11,38 @@ pub struct Branch {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Rule {
-    branches: Vec<Branch>,
-    weight_sum: usize,
+    pub branches: Vec<Branch>,
+    pub weight_sum: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct Grammar {
-    pub symbols: Vec<&'static str>,
+    pub symbols: Vec<String>,
     pub rules: Vec<Rule>,
+    pub map: HashMap<String, Rule>,
 }
 
+pub struct GrammarError {
+    pub message: String,
+    pub range: std::ops::Range<usize>,
+}
+
+pub struct RuleError {
+    pub message: String,
+    pub range: std::ops::Range<usize>,
+}
+
+// =============================================================================
 impl Branch {
     pub fn new(node: FnNode, weight: usize) -> Self {
         Branch { node, weight }
+    }
+}
+
+impl Rule {
+    pub fn new(branches: Vec<Branch>) -> Self {
+        let weight_sum = branches.iter().map(|b| b.weight).sum();
+        Rule { branches, weight_sum }
     }
 }
 
@@ -32,24 +52,23 @@ impl Grammar {
         Grammar {
             symbols: vec![],
             rules: vec![],
+            map: HashMap::new(),
         }
     }
 
-    pub fn add_rule(
-        &mut self,
-        branches: Vec<Branch>,
-        symbol: &'static str,
-    ) -> Result<(), &'static str> {
+    pub fn add_rule(&mut self, branches: Vec<Branch>, symbol: String) -> Result<(), &'static str> {
         if branches.is_empty() {
             return Err("Empty rule branches");
         }
 
         let weight_sum = branches.iter().map(|b| b.weight).sum();
-        self.rules.push(Rule {
+        let rule = Rule {
             branches,
             weight_sum,
-        });
-        self.symbols.push(symbol);
+        };
+        self.rules.push(rule.clone());
+        self.symbols.push(symbol.clone());
+        self.map.insert(symbol, rule);
         Ok(())
     }
 
@@ -144,34 +163,34 @@ impl Grammar {
 impl Default for Grammar {
     fn default() -> Self {
         use crate::node::{ArithmeticOp, FnNode /*CompareOp*/, UnaryOp};
-        // let e = 0;
         let a = 1;
         let c = 2;
         /*
-        # Entry
-        E | vec3(C, C, C)
-          ;
+        * # Entry
+        * E | vec3(C, C, C)
+        *   | vec3(A, C, A)
+        *   ;
 
-        # Terminal
-        A | random
-          | x
-          | y
-          | t
-          | abs(x)
-          | abs(y)
-          | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
-          ;
+        * # Terminal
+        * A | random
+        *   | x
+        *   | y
+        *   | t
+        *   | abs(x)
+        *   | abs(y)
+        *   | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
+        *   ;
 
-        # Expressions
-        C ||  A
-          ||| add(C, C)
-          ||| mult(C, C)
-          | sqrt(abs(C))
-          #||| abs(C)
-          #||| sin(C)
-          ;
+        * # Expressions
+        * C ||  A
+        *   ||| add(C, C)
+        *   ||| mult(C, C)
+        *   ||| abs(C)
+        *   #| sqrt(abs(C))
+        *   #||| sin(C)
+        *   ;
 
-        */
+        **/
 
         let mut grammar = Grammar::new();
         let _ = grammar.add_rule(
@@ -185,7 +204,7 @@ impl Default for Grammar {
                     1,
                 ),
             ],
-            "E",
+            "E".to_string(),
         );
         let _ = grammar.add_rule(
             vec![
@@ -205,7 +224,7 @@ impl Default for Grammar {
                     2,
                 ),
             ],
-            "A",
+            "A".to_string(),
         );
         let _ = grammar.add_rule(
             vec![
@@ -223,7 +242,7 @@ impl Default for Grammar {
                     3,
                 ),
             ],
-            "C",
+            "C".to_string(),
         );
         grammar
     }
@@ -231,11 +250,8 @@ impl Default for Grammar {
 
 impl Display for Grammar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (idx, rule) in self.rules.iter().enumerate() {
-            if idx != 0 {
-                write!(f, "\n")?;
-            }
-            write!(f, "{} {}: ", idx, self.symbols[idx])?;
+        for (symbol, rule) in &self.map {
+            write!(f, "\n{symbol}: ")?;
             for (jdx, branch) in rule.branches.iter().enumerate() {
                 if jdx != 0 {
                     write!(f, " | ")?;

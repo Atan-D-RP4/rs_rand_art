@@ -66,6 +66,8 @@ fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
 fn get_random_fs() -> Result<String, String> {
     use crate::grammar::Grammar;
     let grammar = Grammar::default();
+    println!("Grammar:");
+    println!("{grammar}");
     let Some(mut func) = grammar.gen_from_rule(0, 10) else {
         return Err("Failed to generate function".to_string());
     };

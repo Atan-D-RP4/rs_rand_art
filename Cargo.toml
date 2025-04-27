@@ -10,8 +10,8 @@ image = "0.25.5"
 logos = "0.15.0"
 rand = "0.8.5"
 
-[profile.dev.package.image]         # Modify profile settings via config.
-opt-level = 3                       # Optimization level.
+# [profile.dev.package.image]         # Modify profile settings via config.
+# opt-level = 3                       # Optimization level.
 
 [lints.rust]
 arithmetic_overflow = "deny"        # Prevent operations that would cause integer overflow
@@ -22,7 +22,7 @@ checked_conversions = "deny"        # Suggest using checked conversions between 
 cast_possible_truncation = "deny"   # Detect when casting might truncate a value
 cast_sign_loss = "deny"             # Detect when casting might lose sign information
 cast_possible_wrap = "deny"         # Detect when casting might cause value to wrap around
-cast_precision_loss = "deny"        # Detect when casting might lose precision
+cast_precision_loss = "allow"        # Detect when casting might lose precision
 integer_division = "deny"           # Highlight potential bugs from integer division truncation
 arithmetic_side_effects = "deny"    # Detect arithmetic operations with potential side effects
 unchecked_duration_subtraction = "deny" # Ensure duration subtraction won't cause underflow

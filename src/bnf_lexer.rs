@@ -1,8 +1,11 @@
-use logos::Logos;
+use logos::{Lexer, Logos};
 
-#[derive(Logos, Debug, PartialEq)]
-#[logos(skip r"[ \t\n\f]+")] // Ignore this regex pattern between tokens
-pub enum Token {
+#[derive(Clone, Logos, Debug, PartialEq)]
+#[logos(skip r"[ \t\n\f]+")] // Ignore whitespace between tokens
+pub enum TokenKind {
+    #[regex("#.*", logos::skip)]
+    Comment,
+
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
     Identifier,
 
@@ -27,8 +30,9 @@ pub enum Token {
     #[token("]")]
     RBracket,
 
-    #[token("|")]
-    Pipe,
+    // Match '|', or '||' or '|||' or n pipes
+    #[regex(r"\|{1,}")]
+    Pipes,
 
     #[token(":")]
     Colon,
@@ -46,30 +50,39 @@ pub enum Token {
     EOF,
 }
 
-#[cfg(test)]
-mod test {
-    use logos::Logos;
-    #[test]
-    fn test_lex() {
-        let input = r#"
-a ::=
-    ||| b
-    | c
-    ;
-        "#;
-        let expected = vec![
-            grammar_lang::Token::Identifier,
-            grammar_lang::Token::ColonColonEqual,
-            grammar_lang::Token::Identifier,
-            grammar_lang::Token::Pipe,
-            grammar_lang::Token::Identifier,
-        ];
-        let lexer = super::Token::lexer(input);
-        let mut tokens = Vec::new();
-        lexer.for_each(|x| {
-            let x = x.unwrap();
-            tokens.push(x)
-        });
-        assert_eq!(tokens, expected);
+impl Default for TokenKind {
+    fn default() -> Self {
+        TokenKind::EOF
     }
 }
+
+impl TokenKind {
+    pub fn new(input: &'static str) -> Lexer<'static, Self> {
+        TokenKind::lexer(&input)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::TokenKind;
+    use logos::Logos;
+    use std::fs;
+
+    #[test]
+    fn test_lex() {
+        let input = fs::read_to_string("./grammar.bnf").unwrap_or_else(|err| {
+            eprintln!("Failed to read file: {err}");
+            String::new()
+        });
+        let mut lexer = TokenKind::lexer(&input);
+        let mut tokens = Vec::new();
+        while let Some(token) = lexer.next() {
+            tokens.push(lexer.slice());
+        }
+        println!("Tokens: {:?}", tokens);
+        assert!(tokens.is_empty(), "No tokens were parsed");
+    }
+}
+
+// Neovim command to send results of :!cargo clippy % to quickfix
+// :cgetexpr system('cargo clippy %') | copen

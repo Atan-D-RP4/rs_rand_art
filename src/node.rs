@@ -1,3 +1,4 @@
+#![allow(clippy::many_single_char_names)]
 // impl FnNode {
 //     pub fn _is_terminal(&self) -> bool {
 //         match self {
@@ -15,7 +16,6 @@
 //         }
 //     }
 // }
-
 use std::fmt::Display;
 
 use image::{self as img, buffer};
@@ -57,6 +57,7 @@ pub enum UnaryOp {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum FnNode {
+    // Terminal nodes
     X,
     Y,
     T,
@@ -65,10 +66,12 @@ pub enum FnNode {
     Number(f32),
     Rule(usize),
 
+    // Non-terminal nodes
     Arithmetic(Box<FnNode>, ArithmeticOp, Box<FnNode>),
     Compare(Box<FnNode>, CompareOp, Box<FnNode>),
     Unary(UnaryOp, Box<FnNode>),
 
+    // Non-terminal control flow
     If(Box<FnNode>, Box<FnNode>, Box<FnNode>),
     Triple(Box<FnNode>, Box<FnNode>, Box<FnNode>),
 }
@@ -163,8 +166,10 @@ impl FnNode {
                             FnNode::Compare(_, CompareOp::LessThan, _) => a < b,
                             FnNode::Compare(_, CompareOp::GreaterThanEqual, _) => a >= b,
                             FnNode::Compare(_, CompareOp::LessThanEqual, _) => a <= b,
-                            FnNode::Compare(_, CompareOp::Equal, _) => a == b,
-                            FnNode::Compare(_, CompareOp::NotEqual, _) => a != b,
+                            FnNode::Compare(_, CompareOp::Equal, _) => (a - b).abs() > f32::EPSILON,
+                            FnNode::Compare(_, CompareOp::NotEqual, _) => {
+                                (a - b).abs() <= f32::EPSILON
+                            }
                             _ => {
                                 return Err("Invalid operands for comparison operation".to_string())
                             }
@@ -249,8 +254,8 @@ impl FnNode {
                         CompareOp::LessThan => Ok(FnNode::Boolean(a < b)),
                         CompareOp::GreaterThanEqual => Ok(FnNode::Boolean(a >= b)),
                         CompareOp::LessThanEqual => Ok(FnNode::Boolean(a <= b)),
-                        CompareOp::Equal => Ok(FnNode::Boolean(a == b)),
-                        CompareOp::NotEqual => Ok(FnNode::Boolean(a != b)),
+                        CompareOp::Equal => Ok(FnNode::Boolean((a - b).abs() < f32::EPSILON)),
+                        CompareOp::NotEqual => Ok(FnNode::Boolean((a - b).abs() > f32::EPSILON)),
                     },
                     _ => Err("Invalid operands for comparison operation".to_string()),
                 }
@@ -343,7 +348,7 @@ impl FnNode {
         self.optimize()?;
 
         let mut default_fs = String::from(
-            r#"
+            r"
 #version 330
 
 in vec2 fragTexCoord;
@@ -360,7 +365,7 @@ void main() {
     float t = tan(time);
     finalColor = map_rgb(%s);
 }
-        "#,
+        ",
         );
 
         let mut compiled_node = String::new();
@@ -432,7 +437,7 @@ void main() {
                     CompareOp::NotEqual => " != ",
                 });
                 b.compile_to_glsl_fs_expr(buffer)?;
-                buffer.push_str(")");
+                buffer.push(')');
             }
 
             FnNode::If(cond, then, elze) => {
@@ -452,7 +457,7 @@ void main() {
                 g.compile_to_glsl_fs_expr(buffer)?;
                 buffer.push_str(", ");
                 b.compile_to_glsl_fs_expr(buffer)?;
-                buffer.push_str(")");
+                buffer.push(')');
             }
         }
         Ok(())
@@ -466,50 +471,52 @@ impl FnNode {
 
         match self {
             // Leaf nodes
-            FnNode::X => writeln!(f, "{}X", indent_str),
-            FnNode::Y => writeln!(f, "{}Y", indent_str),
-            FnNode::T => writeln!(f, "{}T", indent_str),
-            FnNode::Random => writeln!(f, "{}Random", indent_str),
-            FnNode::Boolean(val) => writeln!(f, "{}Boolean({})", indent_str, val),
-            FnNode::Number(val) => writeln!(f, "{}Number({})", indent_str, val),
-            FnNode::Rule(val) => writeln!(f, "{}Rule({})", indent_str, val),
+            FnNode::X => writeln!(f, "{indent_str}X"),
+            FnNode::Y => writeln!(f, "{indent_str}Y"),
+            FnNode::T => writeln!(f, "{indent_str}T"),
+            FnNode::Random => writeln!(f, "{indent_str}Random"),
+            FnNode::Boolean(val) => writeln!(f, "{indent_str}Boolean({val})"),
+            FnNode::Number(val) => writeln!(f, "{indent_str}Number({val})"),
+            FnNode::Rule(val) => {
+                writeln!(f, "{indent_str}Rule({val})")
+            }
 
             // Binary operations
             FnNode::Arithmetic(a, op, b) => {
-                writeln!(f, "{}Arithmetic({:?})", indent_str, op)?;
-                a.fmt_with_indent(f, indent + 1)?;
-                b.fmt_with_indent(f, indent + 1)
+                writeln!(f, "{indent_str}Arithmetic({op:?})")?;
+                a.fmt_with_indent(f, indent.saturating_add(1))?;
+                b.fmt_with_indent(f, indent.saturating_add(1))
             }
 
             // Comparison
             FnNode::Compare(a, ord, b) => {
-                writeln!(f, "{}Compare({:?})", indent_str, ord)?;
-                a.fmt_with_indent(f, indent + 1)?;
-                b.fmt_with_indent(f, indent + 1)
+                writeln!(f, "{indent_str}Compare({ord:?})")?;
+                a.fmt_with_indent(f, indent.saturating_add(1))?;
+                b.fmt_with_indent(f, indent.saturating_add(1))
             }
 
             FnNode::Unary(op, expr) => {
-                writeln!(f, "{}Unary({:?})", indent_str, op)?;
-                expr.fmt_with_indent(f, indent + 1)
+                writeln!(f, "{indent_str}Unary({op:?})")?;
+                expr.fmt_with_indent(f, indent.saturating_add(1))
             }
 
             // Control flow
             FnNode::If(cond, then_branch, else_branch) => {
-                writeln!(f, "{}If", indent_str)?;
-                writeln!(f, "{}Condition:", indent_str)?;
-                cond.fmt_with_indent(f, indent + 1)?;
-                writeln!(f, "{}Then:", indent_str)?;
-                then_branch.fmt_with_indent(f, indent + 1)?;
-                writeln!(f, "{}Else:", indent_str)?;
-                else_branch.fmt_with_indent(f, indent + 1)
+                writeln!(f, "{indent_str}If")?;
+                writeln!(f, "{indent_str}Condition:")?;
+                cond.fmt_with_indent(f, indent.saturating_add(1))?;
+                writeln!(f, "{indent_str}Then:")?;
+                then_branch.fmt_with_indent(f, indent.saturating_add(1))?;
+                writeln!(f, "{indent_str}Else:")?;
+                else_branch.fmt_with_indent(f, indent.saturating_add(1))
             }
 
             // Triple for colors
             FnNode::Triple(r, g, b) => {
-                writeln!(f, "{}Triple", indent_str)?;
-                r.fmt_with_indent(f, indent + 1)?;
-                g.fmt_with_indent(f, indent + 1)?;
-                b.fmt_with_indent(f, indent + 1)
+                writeln!(f, "{indent_str}Triple")?;
+                r.fmt_with_indent(f, indent.saturating_add(1))?;
+                g.fmt_with_indent(f, indent.saturating_add(1))?;
+                b.fmt_with_indent(f, indent.saturating_add(1))
             }
         }
     }
