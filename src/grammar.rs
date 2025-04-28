@@ -163,6 +163,7 @@ impl Grammar {
 impl Default for Grammar {
     fn default() -> Self {
         use crate::node::{ArithmeticOp, FnNode /*CompareOp*/, UnaryOp};
+        let e = 0;
         let a = 1;
         let c = 2;
         /*

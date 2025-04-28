@@ -1,11 +1,34 @@
 use logos::{Lexer, Logos};
 
-#[derive(Clone, Logos, Debug, PartialEq)]
-#[logos(skip r"[ \t\n\f]+")] // Ignore whitespace between tokens
-pub enum TokenKind {
-    #[regex("#.*", logos::skip)]
-    Comment,
+// Example BNF grammar:
+// # Entry
+// E | vec3(C, C, C)
+//   ;
+//
+// # Terminal
+// A | random
+//   | x
+//   | y
+//   | t
+//   | abs(x)
+//   | abs(y)
+//   | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
+//   ;
+//
+// # Expressions
+// C ||  A
+//   ||| add(C, C)
+//   ||| mult(C, C)
+//   | sqrt(abs(C))
+//   # ||| abs(C)
+//   #||| sin(C)
+//   ;
+//
 
+#[derive(Clone, Logos, Debug, PartialEq)]
+#[logos(skip r"[ \t\n\f]+|#.*")]
+#[derive(Default)]
+pub enum TokenKind {
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
     Identifier,
 
@@ -17,18 +40,6 @@ pub enum TokenKind {
 
     #[token(")")]
     RParen,
-
-    #[token("{")]
-    LBrace,
-
-    #[token("}")]
-    RBrace,
-
-    #[token("[")]
-    LBracket,
-
-    #[token("]")]
-    RBracket,
 
     // Match '|', or '||' or '|||' or n pipes
     #[regex(r"\|{1,}")]
@@ -43,17 +54,9 @@ pub enum TokenKind {
     #[token(",")]
     Comma,
 
-    #[token("::=")]
-    ColonColonEqual,
-
     #[token("EOF")]
+    #[default]
     EOF,
-}
-
-impl Default for TokenKind {
-    fn default() -> Self {
-        TokenKind::EOF
-    }
 }
 
 impl TokenKind {
@@ -76,10 +79,12 @@ mod test {
         });
         let mut lexer = TokenKind::lexer(&input);
         let mut tokens = Vec::new();
-        while let Some(token) = lexer.next() {
-            tokens.push(lexer.slice());
+        while let Some(Ok(token)) = lexer.next() {
+            tokens.push((token, lexer.slice()));
         }
-        println!("Tokens: {:?}", tokens);
+        for (token, slice) in &tokens {
+            println!("{token:?} :: {slice}");
+        }
         assert!(tokens.is_empty(), "No tokens were parsed");
     }
 }

@@ -35,7 +35,7 @@ pub enum CompareOp {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ArithmeticOp {
     Add,
     Sub,

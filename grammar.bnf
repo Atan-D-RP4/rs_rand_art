@@ -3,7 +3,7 @@ E | vec3(C, C, C)
   ;
 
 # Terminal
-A | random
+B | random
   | x
   | y
   | t
@@ -13,7 +13,7 @@ A | random
   ;
 
 # Expressions
-C ||  A
+C ||  B
   ||| add(C, C)
   ||| mult(C, C)
   | sqrt(abs(C))

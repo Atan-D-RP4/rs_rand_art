@@ -5,6 +5,7 @@ mod node;
 
 use gl::types::{GLchar, GLenum, GLfloat, GLint, GLsizei, GLsizeiptr, GLuint};
 use glfw::{Action, Context, Key, Modifiers};
+use shaderand::bnf_parser;
 
 use std::ffi::CString;
 use std::mem;
@@ -65,17 +66,28 @@ fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
 
 fn get_random_fs() -> Result<String, String> {
     use crate::grammar::Grammar;
-    let grammar = Grammar::default();
+    let inp = "./grammar.bnf";
+    let inp = std::fs::read_to_string(inp).map_err(|e| e.to_string())?;
+    let mut parser = bnf_parser::Parser::new(&inp);
+
+    let grammar = match parser.parse() {
+        Ok(grammar) => grammar,
+        Err(e) => {
+            return Err(format!("Error parsing BNF: {e:?}"));
+        }
+    };
+    // let grammar = Grammar::default();
     println!("Grammar:");
     println!("{grammar}");
+
     let Some(mut func) = grammar.gen_from_rule(0, 10) else {
         return Err("Failed to generate function".to_string());
     };
-    println!("Function:");
-    println!("{func}");
-    func.optimize()?;
-    println!("Optimized Function:");
-    println!("{func}");
+    // println!("Function:");
+    // println!("{func}");
+    // func.optimize()?;
+    // println!("Optimized Function:");
+    // println!("{func}");
     func.compile_to_glsl_fs()
 }
 
