@@ -1,11 +1,11 @@
-extern crate gl;
-extern crate glfw;
+use shaderand::bnf_parser;
 mod grammar;
 mod node;
 
 use gl::types::{GLchar, GLenum, GLfloat, GLint, GLsizei, GLsizeiptr, GLuint};
 use glfw::{Action, Context, Key, Modifiers};
-use shaderand::bnf_parser;
+extern crate gl;
+extern crate glfw;
 
 use std::ffi::CString;
 use std::mem;
