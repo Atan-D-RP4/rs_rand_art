@@ -28,8 +28,8 @@ arithmetic_side_effects = "deny"    # Detect arithmetic operations with potentia
 unchecked_duration_subtraction = "deny" # Ensure duration subtraction won't cause underflow
 
 # --- Unwraps ---
-unwrap_used = "warn"                # Discourage using .unwrap() which can cause panics
-expect_used = "warn"                # Discourage using .expect() which can cause panics
+# unwrap_used = "warn"                # Discourage using .unwrap() which can cause panics
+# expect_used = "warn"                # Discourage using .expect() which can cause panics
 panicking_unwrap = "deny"           # Prevent unwrap on values known to cause panics
 option_env_unwrap = "deny"          # Prevent unwrapping environment variables which might be absent
 

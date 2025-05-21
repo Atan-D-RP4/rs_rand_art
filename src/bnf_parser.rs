@@ -25,16 +25,16 @@ pub enum ParseError {
 #[derive(Debug, Clone)]
 pub struct Parser<'a> {
     lexer: logos::Lexer<'a, TokenKind>,
-    symbol_map: Vec<String>,
+    symbols: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Self {
-        let mut lexer = TokenKind::lexer(input);
+        let lexer = TokenKind::lexer(input);
 
         Parser {
             lexer,
-            symbol_map: Vec::new(),
+            symbols: Vec::new(),
         }
     }
 
@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Identifier => {
                     let symbol = lexer.slice();
                     if lexer.next() == Some(Ok(TokenKind::Pipes)) && ended {
-                        self.symbol_map.push(symbol.to_string());
+                        self.symbols.push(symbol.to_string());
                         ended = false;
                     }
                 }
@@ -70,13 +70,13 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<Grammar, ParseError> {
         let mut grammar = Grammar::new();
         self.collect_symbols()?;
-        println!("Symbols: {:?}", self.symbol_map);
+        println!("Symbols: {:?}", self.symbols);
 
         while let Some(Ok(token)) = self.lexer.next() {
             match token {
                 TokenKind::Identifier => {
                     let symbol = self.lexer.slice();
-                    if self.symbol_map.contains(&symbol.to_string()) {
+                    if self.symbols.contains(&symbol.to_string()) {
                         self.parse_rule(symbol, &mut grammar)?;
                     } else {
                         return Err(ParseError::UnknownSymbol(symbol.to_string()));
@@ -130,9 +130,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_ident(&mut self, ident: &str) -> Result<FnNode, ParseError> {
-        if self.symbol_map.contains(&ident.to_string()) {
+        if self.symbols.contains(&ident.to_string()) {
             return Ok(FnNode::Rule(
-                match self.symbol_map.iter().position(|s| s == ident) {
+                match self.symbols.iter().position(|s| s == ident) {
                     Some(idx) => idx,
                     None => return Err(ParseError::UnknownSymbol(ident.to_string())),
                 },
@@ -240,37 +240,34 @@ mod test {
     #[test]
     fn test_parse_bnf() {
         let input = r"
-# Entry
-E | vec3(C, C, C)
-  ;
+        # Entry
+        E | vec3(C, C, C)
+          ;
 
-# Terminal
-A | random
-  | x
-  | y
-  | t
-  | abs(x)
-  | abs(y)
-  | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
-  ;
+        # Terminal
+        A | random
+          | x
+          | y
+          | t
+          | abs(x)
+          | abs(y)
+          | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
+          ;
 
-# Expressions
-C ||  A
-  ||| add(C, C)
-  ||| mult(C, C)
-  | sqrt(abs(C))
-  # ||| abs(C)
-  #||| sin(C)
-  ;
-        ";
+        # Expressions
+        C ||  A
+          ||| add(C, C)
+          ||| mult(C, C)
+          | sqrt(abs(E))
+          ||| abs(C)
+          ||| sin(C)
+          ;
+                ";
         let mut parser = Parser::new(input);
         let result = parser.parse();
         assert!(result.is_ok(), "Parse should be successful");
         let _ = result.map(|grammar| {
             println!("{grammar}");
-            println!();
-            println!("{}", Grammar::default());
-            assert!(false);
             let node = grammar.gen_from_rule(0, 10);
             assert!(node.is_some(), "Node should be generated");
         });

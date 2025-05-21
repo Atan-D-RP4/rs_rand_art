@@ -64,17 +64,17 @@ fn split4(x: f32, y: f32) -> Color {
 fn render(function: fn(x: f32, y: f32) -> Color) {
     let mut img = img::ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
     for y in 0..HEIGHT {
-        let ny = (y as i32 / (HEIGHT as i32)) as f32 * 2.0 - 1.0;
+        let ny = (y / HEIGHT) as f32 * 2.0 - 1.0;
         for x in 0..WIDTH {
-            let nx = (x as i32 / (WIDTH as i32)) as f32 * 2.0 - 1.0;
+            let nx = (x / WIDTH) as f32 * 2.0 - 1.0;
             let color = function(nx, ny);
             img.put_pixel(
                 x as u32,
                 y as u32,
                 img::Rgb([
-                    (((color.r + 1.0) / 2.0) * 255.0) as u8,
-                    (((color.g + 1.0) / 2.0) * 255.0) as u8,
-                    (((color.b + 1.0) / 2.0) * 255.0) as u8,
+                    (f32::midpoint(color.r, 1.0) * 255.0) as u8,
+                    (f32::midpoint(color.g, 1.0) * 255.0) as u8,
+                    (f32::midpoint(color.b, 1.0) * 255.0) as u8,
                 ]),
             );
         }

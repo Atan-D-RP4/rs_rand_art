@@ -61,7 +61,7 @@ pub enum TokenKind {
 
 impl TokenKind {
     pub fn new(input: &'static str) -> Lexer<'static, Self> {
-        TokenKind::lexer(&input)
+        TokenKind::lexer(input)
     }
 }
 
