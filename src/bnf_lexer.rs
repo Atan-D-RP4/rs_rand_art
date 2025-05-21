@@ -85,7 +85,7 @@ mod test {
         for (token, slice) in &tokens {
             println!("{token:?} :: {slice}");
         }
-        assert!(tokens.is_empty(), "No tokens were parsed");
+        assert!(!tokens.is_empty(), "No tokens were parsed");
     }
 }
 

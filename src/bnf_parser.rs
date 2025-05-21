@@ -267,6 +267,10 @@ C ||  A
         let result = parser.parse();
         assert!(result.is_ok(), "Parse should be successful");
         let _ = result.map(|grammar| {
+            println!("{grammar}");
+            println!();
+            println!("{}", Grammar::default());
+            assert!(false);
             let node = grammar.gen_from_rule(0, 10);
             assert!(node.is_some(), "Node should be generated");
         });

@@ -523,44 +523,44 @@ impl FnNode {
 }
 
 impl Display for FnNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.fmt_with_indent(f, 0)
-    }
     // fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    //     match self {
-    //         FnNode::X => write!(f, "x"),
-    //         FnNode::Y => write!(f, "y"),
-    //         FnNode::T => write!(f, "t"),
-    //         FnNode::Random => write!(f, "random"),
-    //         FnNode::Boolean(val) => write!(f, "{}", val),
-    //         FnNode::Number(val) => write!(f, "{}", val),
-    //         FnNode::Rule(val) => write!(f, "rule({})", val),
-    //         FnNode::Arithmetic(a, op, b) => match op {
-    //             ArithmeticOp::Add => write!(f, "add({}, {})", a, b),
-    //             ArithmeticOp::Sub => write!(f, "sub({}, {})", a, b),
-    //             ArithmeticOp::Mul => write!(f, "mul({}, {})", a, b),
-    //             ArithmeticOp::Div => write!(f, "div({}, {})", a, b),
-    //             ArithmeticOp::Mod => write!(f, "mod({}, {})", a, b),
-    //         },
-    //         FnNode::Compare(a, ord, b) => match ord {
-    //             CompareOp::GreaterThan => write!(f, "({} gt {})", a, b),
-    //             CompareOp::LessThan => write!(f, "({} lt {})", a, b),
-    //             CompareOp::GreaterThanEqual => write!(f, "({} gte {})", a, b),
-    //             CompareOp::LessThanEqual => write!(f, "({} lte {})", a, b),
-    //             CompareOp::Equal => write!(f, "({} eq {})", a, b),
-    //             CompareOp::NotEqual => write!(f, "({} neq {})", a, b),
-    //         },
-    //         FnNode::Unary(op, expr) => match op {
-    //             UnaryOp::Sqrt => write!(f, "sqrt({})", expr),
-    //             UnaryOp::Abs => write!(f, "abs({})", expr),
-    //             UnaryOp::Sin => write!(f, "sin({})", expr),
-    //             UnaryOp::Cos => write!(f, "cos({})", expr),
-    //             UnaryOp::Tan => write!(f, "tan({})", expr),
-    //         },
-    //         FnNode::If(cond, then_branch, else_branch) => {
-    //             write!(f, "if({}, {}, {})", cond, then_branch, else_branch)
-    //         }
-    //         FnNode::Triple(r, g, b) => write!(f, "({}, {}, {})", r, g, b),
-    //     }
+    //     self.fmt_with_indent(f, 0)
     // }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FnNode::X => write!(f, "x"),
+            FnNode::Y => write!(f, "y"),
+            FnNode::T => write!(f, "t"),
+            FnNode::Random => write!(f, "random"),
+            FnNode::Boolean(val) => write!(f, "{val}"),
+            FnNode::Number(val) => write!(f, "{}", val),
+            FnNode::Rule(val) => write!(f, "rule({})", val),
+            FnNode::Arithmetic(a, op, b) => match op {
+                ArithmeticOp::Add => write!(f, "add({}, {})", a, b),
+                ArithmeticOp::Sub => write!(f, "sub({}, {})", a, b),
+                ArithmeticOp::Mul => write!(f, "mul({}, {})", a, b),
+                ArithmeticOp::Div => write!(f, "div({}, {})", a, b),
+                ArithmeticOp::Mod => write!(f, "mod({}, {})", a, b),
+            },
+            FnNode::Compare(a, ord, b) => match ord {
+                CompareOp::GreaterThan => write!(f, "({} gt {})", a, b),
+                CompareOp::LessThan => write!(f, "({} lt {})", a, b),
+                CompareOp::GreaterThanEqual => write!(f, "({} gte {})", a, b),
+                CompareOp::LessThanEqual => write!(f, "({} lte {})", a, b),
+                CompareOp::Equal => write!(f, "({} eq {})", a, b),
+                CompareOp::NotEqual => write!(f, "({} neq {})", a, b),
+            },
+            FnNode::Unary(op, expr) => match op {
+                UnaryOp::Sqrt => write!(f, "sqrt({})", expr),
+                UnaryOp::Abs => write!(f, "abs({})", expr),
+                UnaryOp::Sin => write!(f, "sin({})", expr),
+                UnaryOp::Cos => write!(f, "cos({})", expr),
+                UnaryOp::Tan => write!(f, "tan({})", expr),
+            },
+            FnNode::If(cond, then_branch, else_branch) => {
+                write!(f, "if({}, {}, {})", cond, then_branch, else_branch)
+            }
+            FnNode::Triple(r, g, b) => write!(f, "({r}, {g}, {b})"),
+        }
+    }
 }
