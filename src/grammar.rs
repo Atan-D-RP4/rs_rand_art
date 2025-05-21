@@ -1,5 +1,5 @@
 use crate::node::FnNode;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
@@ -18,8 +18,7 @@ pub struct Rule {
 #[derive(Debug, Clone)]
 pub struct Grammar {
     pub symbols: Vec<String>,
-    pub rules: Vec<Rule>,
-    pub map: HashMap<String, Rule>,
+    pub map: BTreeMap<String, Rule>,
 }
 
 pub struct GrammarError {
@@ -42,7 +41,10 @@ impl Branch {
 impl Rule {
     pub fn new(branches: Vec<Branch>) -> Self {
         let weight_sum = branches.iter().map(|b| b.weight).sum();
-        Rule { branches, weight_sum }
+        Rule {
+            branches,
+            weight_sum,
+        }
     }
 }
 
@@ -51,8 +53,7 @@ impl Grammar {
     pub fn new() -> Self {
         Grammar {
             symbols: vec![],
-            rules: vec![],
-            map: HashMap::new(),
+            map: BTreeMap::new(),
         }
     }
 
@@ -66,21 +67,28 @@ impl Grammar {
             branches,
             weight_sum,
         };
-        self.rules.push(rule.clone());
         self.symbols.push(symbol.clone());
+        println!("Added rule: {:?}", &rule);
         self.map.insert(symbol, rule);
         Ok(())
     }
 
     pub fn gen_from_rule(&self, rule_idx: usize, depth: usize) -> Option<FnNode> {
-        if depth == 0 || rule_idx >= self.rules.len() {
+        if depth == 0 || rule_idx >= self.map.len() {
             return None;
         }
 
-        let rule = &self.rules.get(rule_idx).or_else(|| {
-            eprintln!("Rule index out of bounds: {rule_idx}");
-            None
-        })?;
+        let rule = &self
+            .map
+            .get(
+                self.symbols
+                    .get(rule_idx)
+                    .expect("Failed to Find rule at idx: {rule_idx}"),
+            )
+            .or_else(|| {
+                eprintln!("Rule index out of bounds: {rule_idx}");
+                None
+            })?;
         let mut attempts: i32 = 100; // GEN_RULE_MAX_ATTEMPTS
 
         while attempts > 0 {
@@ -131,11 +139,9 @@ impl Grammar {
                 let r = self.gen_node(rhs, depth)?;
                 Some(match node {
                     FnNode::Arithmetic(_, kind, _) => {
-                        FnNode::Arithmetic(Box::new(l), kind.clone(), Box::new(r))
+                        FnNode::Arithmetic(Box::new(l), *kind, Box::new(r))
                     }
-                    FnNode::Compare(_, kind, _) => {
-                        FnNode::Compare(Box::new(l), kind.clone(), Box::new(r))
-                    }
+                    FnNode::Compare(_, kind, _) => FnNode::Compare(Box::new(l), *kind, Box::new(r)),
                     _ => unreachable!(),
                 })
             }
@@ -163,9 +169,9 @@ impl Grammar {
 impl Default for Grammar {
     fn default() -> Self {
         use crate::node::{ArithmeticOp, FnNode /*CompareOp*/, UnaryOp};
-        let e = 0;
-        let a = 1;
-        let c = 2;
+        let _ = 0; // E
+        let a = 1; // A
+        let c = 2; // C
         /*
         * # Entry
         * E | vec3(C, C, C)
@@ -251,7 +257,8 @@ impl Default for Grammar {
 
 impl Display for Grammar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (symbol, rule) in &self.map {
+        for symbol in &self.symbols {
+            let rule = self.map.get(symbol).unwrap();
             write!(f, "\n{symbol}: ")?;
             for (jdx, branch) in rule.branches.iter().enumerate() {
                 if jdx != 0 {

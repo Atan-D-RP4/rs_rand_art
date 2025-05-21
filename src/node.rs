@@ -16,9 +16,9 @@
 //         }
 //     }
 // }
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 
-use image::{self as img, buffer};
+use image::{self as img};
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 944;
@@ -147,7 +147,7 @@ impl FnNode {
                             FnNode::Arithmetic(_, ArithmeticOp::Div, _) => a / b,
                             FnNode::Arithmetic(_, ArithmeticOp::Mod, _) => a % b,
                             _ => {
-                                return Err("Invalid operands for arithmetic operation".to_string())
+                                return Err("Invalid operands for arithmetic operation".to_string());
                             }
                         });
                         Ok(())
@@ -171,7 +171,7 @@ impl FnNode {
                                 (a - b).abs() <= f32::EPSILON
                             }
                             _ => {
-                                return Err("Invalid operands for comparison operation".to_string())
+                                return Err("Invalid operands for comparison operation".to_string());
                             }
                         });
                         Ok(())
@@ -331,9 +331,9 @@ impl FnNode {
 
                 let color = self.eval_fn(nx, ny, 0.0)?;
                 let pixel = img::Rgb([
-                    ((color.r + 1.0) / 2.0 * 255.0) as u8,
-                    ((color.g + 1.0) / 2.0 * 255.0) as u8,
-                    ((color.b + 1.0) / 2.0 * 255.0) as u8,
+                    (f32::midpoint(color.r, 1.0) * 255.0) as u8,
+                    (f32::midpoint(color.g, 1.0) * 255.0) as u8,
+                    (f32::midpoint(color.b, 1.0) * 255.0) as u8,
                 ]);
 
                 img.put_pixel(x, y, pixel);
@@ -344,35 +344,15 @@ impl FnNode {
         Ok(())
     }
 
-    pub fn compile_to_glsl_fs(&mut self) -> Result<String, String> {
+    pub fn compile_to_glsl_fs(&mut self, template_fs: &str) -> Result<String, String> {
         self.optimize()?;
-
-        let mut default_fs = String::from(
-            r"
-#version 330
-
-in vec2 fragTexCoord;
-out vec4 finalColor;
-uniform float time;
-
-vec4 map_rgb(vec3 rgb) {
-    return vec4(rgb + 1/2, 1);
-}
-
-void main() {
-    float x = fragTexCoord.x;
-    float y = fragTexCoord.y;
-    float t = tan(time);
-    finalColor = map_rgb(%s);
-}
-        ",
-        );
 
         let mut compiled_node = String::new();
         match self.compile_to_glsl_fs_expr(&mut compiled_node) {
-            Ok(_) => {
-                default_fs = default_fs.replace("%s", compiled_node.as_str());
-                Ok(default_fs.to_string())
+            Ok(()) => {
+                let formatted_fs = template_fs.replace("%s", compiled_node.as_str());
+                println!("{formatted_fs}");
+                Ok(formatted_fs.to_string())
             }
             Err(e) => Err(e),
         }
@@ -383,14 +363,14 @@ void main() {
             FnNode::X => buffer.push('x'),
             FnNode::Y => buffer.push('y'),
             FnNode::T => buffer.push('t'),
-            FnNode::Number(val) => buffer.push_str(&format!("({})", val)),
+            FnNode::Number(val) => writeln!(buffer, "({val})").map_err(|e| format!("{e}"))?,
             FnNode::Boolean(val) => match val {
                 true => buffer.push_str("true"),
                 false => buffer.push_str("false"),
             },
 
             FnNode::Random | FnNode::Rule(_) => {
-                return Err("Rule node encountered during GLSL compilation".to_string())
+                return Err("Rule node encountered during GLSL compilation".to_string());
             }
 
             FnNode::Unary(kind, expr) => {
@@ -402,11 +382,11 @@ void main() {
                     UnaryOp::Tan => "tan(",
                 });
                 expr.compile_to_glsl_fs_expr(buffer)?;
-                buffer.push_str(")");
+                buffer.push(')');
             }
 
             FnNode::Arithmetic(a, kind, b) => {
-                buffer.push_str("(");
+                buffer.push('(');
                 if let ArithmeticOp::Mod = kind {
                     buffer.push_str("mod(");
                 }
@@ -420,13 +400,13 @@ void main() {
                 });
                 b.compile_to_glsl_fs_expr(buffer)?;
                 if let ArithmeticOp::Mod = kind {
-                    buffer.push_str(")");
+                    buffer.push(')');
                 }
-                buffer.push_str(")");
+                buffer.push(')');
             }
 
             FnNode::Compare(a, kind, b) => {
-                buffer.push_str("(");
+                buffer.push('(');
                 a.compile_to_glsl_fs_expr(buffer)?;
                 buffer.push_str(match kind {
                     CompareOp::GreaterThanEqual => " >= ",
@@ -533,32 +513,32 @@ impl Display for FnNode {
             FnNode::T => write!(f, "t"),
             FnNode::Random => write!(f, "random"),
             FnNode::Boolean(val) => write!(f, "{val}"),
-            FnNode::Number(val) => write!(f, "{}", val),
-            FnNode::Rule(val) => write!(f, "rule({})", val),
+            FnNode::Number(val) => write!(f, "{val}"),
+            FnNode::Rule(val) => write!(f, "rule({val})"),
             FnNode::Arithmetic(a, op, b) => match op {
-                ArithmeticOp::Add => write!(f, "add({}, {})", a, b),
-                ArithmeticOp::Sub => write!(f, "sub({}, {})", a, b),
-                ArithmeticOp::Mul => write!(f, "mul({}, {})", a, b),
-                ArithmeticOp::Div => write!(f, "div({}, {})", a, b),
-                ArithmeticOp::Mod => write!(f, "mod({}, {})", a, b),
+                ArithmeticOp::Add => write!(f, "add({a}, {b})"),
+                ArithmeticOp::Sub => write!(f, "sub({a}, {b})"),
+                ArithmeticOp::Mul => write!(f, "mul({a}, {b})"),
+                ArithmeticOp::Div => write!(f, "div({a}, {b})"),
+                ArithmeticOp::Mod => write!(f, "mod({a}, {b})"),
             },
             FnNode::Compare(a, ord, b) => match ord {
-                CompareOp::GreaterThan => write!(f, "({} gt {})", a, b),
-                CompareOp::LessThan => write!(f, "({} lt {})", a, b),
-                CompareOp::GreaterThanEqual => write!(f, "({} gte {})", a, b),
-                CompareOp::LessThanEqual => write!(f, "({} lte {})", a, b),
-                CompareOp::Equal => write!(f, "({} eq {})", a, b),
-                CompareOp::NotEqual => write!(f, "({} neq {})", a, b),
+                CompareOp::GreaterThan => write!(f, "({a} gt {b})"),
+                CompareOp::LessThan => write!(f, "({a} lt {b})"),
+                CompareOp::GreaterThanEqual => write!(f, "({a} gte {b})"),
+                CompareOp::LessThanEqual => write!(f, "({a} lte {b})"),
+                CompareOp::Equal => write!(f, "({a} eq {b})"),
+                CompareOp::NotEqual => write!(f, "({a} neq {b})"),
             },
             FnNode::Unary(op, expr) => match op {
-                UnaryOp::Sqrt => write!(f, "sqrt({})", expr),
-                UnaryOp::Abs => write!(f, "abs({})", expr),
-                UnaryOp::Sin => write!(f, "sin({})", expr),
-                UnaryOp::Cos => write!(f, "cos({})", expr),
-                UnaryOp::Tan => write!(f, "tan({})", expr),
+                UnaryOp::Sqrt => write!(f, "sqrt({expr})"),
+                UnaryOp::Abs => write!(f, "abs({expr})"),
+                UnaryOp::Sin => write!(f, "sin({expr})"),
+                UnaryOp::Cos => write!(f, "cos({expr})"),
+                UnaryOp::Tan => write!(f, "tan({expr})"),
             },
             FnNode::If(cond, then_branch, else_branch) => {
-                write!(f, "if({}, {}, {})", cond, then_branch, else_branch)
+                write!(f, "if({cond}, {then_branch}, {else_branch})")
             }
             FnNode::Triple(r, g, b) => write!(f, "({r}, {g}, {b})"),
         }
