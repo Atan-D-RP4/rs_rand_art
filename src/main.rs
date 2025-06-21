@@ -88,7 +88,26 @@ fn get_random_fs() -> Result<String, String> {
     // func.optimize()?;
     // println!("Optimized Function:");
     // println!("{func}");
-    func.compile_to_glsl_fs()
+    let template_fs = String::from(
+        r"#version 330
+
+          in vec2 fragTexCoord;
+          out vec4 finalColor;
+          uniform float time;
+
+          vec4 map_rgb(vec3 rgb) {
+              return vec4(rgb + 1/2, 1);
+          }
+
+          void main() {
+              float x = fragTexCoord.x;
+              float y = fragTexCoord.y;
+              float t = tan(time);
+              finalColor = map_rgb(%s);
+          }
+        ",
+    );
+    func.compile_to_glsl_fs(&template_fs)
 }
 
 #[allow(non_snake_case)]

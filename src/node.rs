@@ -147,7 +147,7 @@ impl FnNode {
                             FnNode::Arithmetic(_, ArithmeticOp::Div, _) => a / b,
                             FnNode::Arithmetic(_, ArithmeticOp::Mod, _) => a % b,
                             _ => {
-                                return Err("Invalid operands for arithmetic operation".to_string())
+                                return Err("Invalid operands for arithmetic operation".to_string());
                             }
                         });
                         Ok(())
@@ -171,7 +171,7 @@ impl FnNode {
                                 (a - b).abs() <= f32::EPSILON
                             }
                             _ => {
-                                return Err("Invalid operands for comparison operation".to_string())
+                                return Err("Invalid operands for comparison operation".to_string());
                             }
                         });
                         Ok(())
@@ -344,30 +344,8 @@ impl FnNode {
         Ok(())
     }
 
-    pub fn compile_to_glsl_fs(&mut self) -> Result<String, String> {
+    pub fn compile_to_glsl_fs(&mut self, template_fs: &str) -> Result<String, String> {
         self.optimize()?;
-
-        let template_fs = String::from(
-            r"
-#version 330
-
-in vec2 fragTexCoord;
-out vec4 finalColor;
-uniform float time;
-
-vec4 map_rgb(vec3 rgb) {
-    return vec4(rgb + 1/2, 1);
-}
-
-void main() {
-    float x = fragTexCoord.x;
-    float y = fragTexCoord.y;
-    float t = tan(time);
-    finalColor = map_rgb(%s);
-}
-        ",
-        );
-
         let mut compiled_node = String::new();
         match self.compile_to_glsl_fs_expr(&mut compiled_node) {
             Ok(()) => {
@@ -384,16 +362,14 @@ void main() {
             FnNode::X => buffer.push('x'),
             FnNode::Y => buffer.push('y'),
             FnNode::T => buffer.push('t'),
-            FnNode::Number(val) => {
-                writeln!(buffer, "({val})").map_err(|e| format!("{e}"))?;
-            }
+            FnNode::Number(val) => writeln!(buffer, "({val})").map_err(|e| format!("{e}"))?,
             FnNode::Boolean(val) => match val {
                 true => buffer.push_str("true"),
                 false => buffer.push_str("false"),
             },
 
             FnNode::Random | FnNode::Rule(_) => {
-                return Err("Rule node encountered during GLSL compilation".to_string())
+                return Err("Rule node encountered during GLSL compilation".to_string());
             }
 
             FnNode::Unary(kind, expr) => {
