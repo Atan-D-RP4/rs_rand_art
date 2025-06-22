@@ -6,6 +6,7 @@ use web_sys::{
     HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlVertexArrayObject,
 };
 
+use crate::bnf_parser::Parser;
 use crate::grammar::Grammar;
 
 const FRAGMENT_SHADER_TEMPLATE: &str = r"#version 300 es
@@ -198,7 +199,7 @@ impl ShaderRenderer {
 
         // Generate new fragment shader
         let fragment_shader_source =
-            generate_fragment_shader("").map_err(|e| JsValue::from_str(&e))?;
+            generate_fragment_shader(&self.grammar).map_err(|e| JsValue::from_str(&e))?;
 
         web_sys::console::log_1(&format!("New shader: {fragment_shader_source}").into());
 
@@ -229,6 +230,25 @@ impl ShaderRenderer {
         self.start_rendering()?;
 
         Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn reload_grammar(&mut self, new_grammar: &str) -> Result<(), JsValue> {
+        // Update the grammar and reload the shader
+        let grammar = Parser::new(new_grammar).parse();
+        match grammar {
+            Ok(g) => self.grammar = g.to_string(),
+            Err(e) => {
+                web_sys::console::error_1(
+                    &format!("{new_grammar} is not a valid grammar: {e:?}").into(),
+                );
+                return Err(JsValue::from_str(&format!(
+                    "Failed to parse grammar: {e:?}\nProvided Grammar: {new_grammar}",
+                )));
+            }
+        }
+        web_sys::console::log_1(&format!("New grammar: {}", self.grammar).into());
+        self.reload_shader()
     }
 
     #[wasm_bindgen]
@@ -344,13 +364,12 @@ fn link_program(
 pub fn generate_fragment_shader(inp: &str) -> Result<String, String> {
     let grammar = if inp.is_empty() {
         // Use a default grammar if no input is provided
-        crate::grammar::Grammar::default()
+        Grammar::default()
     } else {
-        use crate::bnf_parser::Parser;
         let mut parser = Parser::new(inp);
         parser
             .parse()
-            .map_err(|e| format!("Failed to parse grammar: {e:?}"))?
+            .map_err(|e| format!("Failed to parse grammar: {e:?}\nGrammar:\n{inp}"))?
     };
 
     let mut func = grammar

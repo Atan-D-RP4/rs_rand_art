@@ -38,6 +38,8 @@ impl<'a> Parser<'a> {
 
     pub fn collect_symbols(&mut self) -> Result<(), ParseError> {
         let mut lexer = self.lexer.clone();
+        // web_sys::console::log_1(&format!("Tokens: {:?}", self.lexer).into());
+        println!("Tokens: {:?}", self.lexer);
         let mut ended = true;
 
         while let Some(Ok(token)) = lexer.next() {
@@ -133,6 +135,7 @@ impl<'a> Parser<'a> {
                     Some(idx) => idx,
                     None => return Err(ParseError::UnknownSymbol(ident.to_string())),
                 },
+                ident.chars().last().unwrap_or(' '),
             ));
         }
         match ident {
@@ -163,7 +166,7 @@ impl<'a> Parser<'a> {
                     nodes[2].clone(),
                 ))
             }
-            "add" | "mult" | "sub" | "div" | "mod" => {
+            "add" | "mul" | "sub" | "div" | "mod" => {
                 let mut nodes = Vec::with_capacity(3);
                 while let Some(Ok(token)) = self.lexer.next() {
                     match token {
@@ -184,7 +187,7 @@ impl<'a> Parser<'a> {
                 let op = match ident {
                     "add" => ArithmeticOp::Add,
                     "sub" => ArithmeticOp::Sub,
-                    "mult" | "mul" => ArithmeticOp::Mul,
+                    "mul" => ArithmeticOp::Mul,
                     "div" => ArithmeticOp::Div,
                     "mod" => ArithmeticOp::Mod,
                     _ => unreachable!(),

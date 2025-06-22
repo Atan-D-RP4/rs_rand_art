@@ -1,6 +1,4 @@
-
 use crate::node::FnNode;
-use std::collections::BTreeMap;
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
@@ -19,7 +17,7 @@ pub struct Rule {
 #[derive(Debug, Clone)]
 pub struct Grammar {
     pub symbols: Vec<String>,
-    pub map: BTreeMap<String, Rule>,
+    pub map: Vec<(String, Rule)>,
 }
 
 pub struct GrammarError {
@@ -54,7 +52,7 @@ impl Grammar {
     pub fn new() -> Self {
         Grammar {
             symbols: vec![],
-            map: BTreeMap::new(),
+            map: Vec::new(),
         }
     }
 
@@ -70,7 +68,7 @@ impl Grammar {
         };
         self.symbols.push(symbol.clone());
         println!("Added rule: {:?}", &rule);
-        self.map.insert(symbol, rule);
+        self.map.push((symbol, rule));
         Ok(())
     }
 
@@ -79,17 +77,7 @@ impl Grammar {
             return None;
         }
 
-        let rule = &self
-            .map
-            .get(
-                self.symbols
-                    .get(rule_idx)
-                    .expect("Failed to Find rule at idx: {rule_idx}"),
-            )
-            .or_else(|| {
-                eprintln!("Rule index out of bounds: {rule_idx}");
-                None
-            })?;
+        let rule = &self.map[rule_idx].1;
         let mut attempts: i32 = 100; // GEN_RULE_MAX_ATTEMPTS
 
         while attempts > 0 {
@@ -156,7 +144,7 @@ impl Grammar {
             }
 
             // Rule reference
-            FnNode::Rule(rule_idx) => self.gen_from_rule(*rule_idx, depth - 1),
+            FnNode::Rule(rule_idx, _) => self.gen_from_rule(*rule_idx, depth - 1),
         }
     }
 }
@@ -164,9 +152,10 @@ impl Grammar {
 impl Default for Grammar {
     fn default() -> Self {
         use crate::node::{ArithmeticOp, FnNode /*CompareOp*/, UnaryOp};
-        let _ = 0;  // E
-        let a = 1;  // A
-        let c = 2;  // C
+        let _ = 0; // E
+        let a = 1; // A
+        let c = 2; // C
+
         /*
         * # Entry
         * E | vec3(C, C, C)
@@ -198,11 +187,19 @@ impl Default for Grammar {
         let _ = grammar.add_rule(
             vec![
                 Branch::new(
-                    FnNode::triple(FnNode::Rule(c), FnNode::Rule(c), FnNode::Rule(c)),
+                    FnNode::triple(
+                        FnNode::Rule(c, 'C'),
+                        FnNode::Rule(c, 'C'),
+                        FnNode::Rule(c, 'C'),
+                    ),
                     1,
                 ),
                 Branch::new(
-                    FnNode::triple(FnNode::Rule(a), FnNode::Rule(c), FnNode::Rule(a)),
+                    FnNode::triple(
+                        FnNode::Rule(a, 'A'),
+                        FnNode::Rule(c, 'C'),
+                        FnNode::Rule(a, 'A'),
+                    ),
                     1,
                 ),
             ],
@@ -230,17 +227,28 @@ impl Default for Grammar {
         );
         let _ = grammar.add_rule(
             vec![
-                Branch::new(FnNode::Rule(a), 2),
+                Branch::new(FnNode::Rule(a, 'A'), 2),
                 Branch::new(
-                    FnNode::arithmetic(FnNode::Rule(c), ArithmeticOp::Add, FnNode::Rule(c)),
+                    FnNode::arithmetic(
+                        FnNode::Rule(c, 'C'),
+                        ArithmeticOp::Add,
+                        FnNode::Rule(c, 'C'),
+                    ),
                     3,
                 ),
                 Branch::new(
-                    FnNode::arithmetic(FnNode::Rule(c), ArithmeticOp::Mul, FnNode::Rule(c)),
+                    FnNode::arithmetic(
+                        FnNode::Rule(c, 'C'),
+                        ArithmeticOp::Mul,
+                        FnNode::Rule(c, 'C'),
+                    ),
                     3,
                 ),
                 Branch::new(
-                    FnNode::unary(UnaryOp::Sqrt, FnNode::unary(UnaryOp::Abs, FnNode::Rule(c))),
+                    FnNode::unary(
+                        UnaryOp::Sqrt,
+                        FnNode::unary(UnaryOp::Abs, FnNode::Rule(c, 'C')),
+                    ),
                     3,
                 ),
             ],
@@ -250,19 +258,43 @@ impl Default for Grammar {
     }
 }
 
+// # Entry
+// E | vec3(C, C, C)
+//   ;
+//
+// # Terminal
+// B | random
+//   | x
+//   | y
+//   | t
+//   | abs(x)
+//   | abs(y)
+//   | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
+//   ;
+//
+// # Expressions
+// C ||  B
+//   ||| add(C, C)
+//   ||| mult(C, C)
+//   | sqrt(abs(C))
+//   # ||| abs(C)
+//   #||| sin(C)
+//   ;
 impl Display for Grammar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for symbol in &self.symbols {
-            let rule = self.map.get(symbol).unwrap();
-            write!(f, "\n{symbol}: ")?;
-            for (jdx, branch) in rule.branches.iter().enumerate() {
-                if jdx != 0 {
-                    write!(f, " | ")?;
+        for (symbol, rule) in &self.map {
+            writeln!(f, "{symbol}")?;
+            for branch in &rule.branches {
+                (0..branch.weight).for_each(|_| {
+                    write!(f, "|").unwrap();
+                });
+                match &branch.node {
+                    FnNode::Triple(a, b, c) => write!(f, "vec3({},{},{})", *a, *b, *c)?,
+                    _ => writeln!(f, " {}", branch.node)?,
                 }
-                write!(f, "{} [{}]", branch.node, branch.weight)?;
             }
+            writeln!(f, ";")?;
         }
         Ok(())
     }
 }
-

@@ -9,13 +9,13 @@ B | random
   | t
   | abs(x)
   | abs(y)
-  | sqrt(add(mult(x, x), mult(y, y))) # Distance from (0, 0) to (x, y)
+  | sqrt(add(mul(x, x), mul(y, y))) # Distance from (0, 0) to (x, y)
   ;
 
 # Expressions
 C ||  B
   ||| add(C, C)
-  ||| mult(C, C)
+  ||| mul(C, C)
   | sqrt(abs(C))
   # ||| abs(C)
   #||| sin(C)

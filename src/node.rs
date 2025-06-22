@@ -65,7 +65,7 @@ pub enum FnNode {
     Random,
     Boolean(bool),
     Number(f32),
-    Rule(usize),
+    Rule(usize, char),
 
     // Non-terminal nodes
     Arithmetic(Box<FnNode>, ArithmeticOp, Box<FnNode>),
@@ -125,7 +125,7 @@ impl FnNode {
             }
             FnNode::X | FnNode::Y | FnNode::T | FnNode::Boolean(_) | FnNode::Number(_) => Ok(()),
 
-            FnNode::Random | FnNode::Rule(_) => {
+            FnNode::Random | FnNode::Rule(_, _) => {
                 Err("Rule node encountered during optimization".to_string())
             }
 
@@ -225,7 +225,7 @@ impl FnNode {
             FnNode::T => Ok(FnNode::Number(t)),
             FnNode::Boolean(val) => Ok(FnNode::Boolean(*val)),
             FnNode::Number(val) => Ok(FnNode::Number(*val)),
-            FnNode::Random | FnNode::Rule(_) => {
+            FnNode::Random | FnNode::Rule(_, _) => {
                 Err("Rule node encountered during evaluation".to_string())
             }
 
@@ -370,7 +370,7 @@ impl FnNode {
                 false => buffer.push_str("false"),
             },
 
-            FnNode::Random | FnNode::Rule(_) => {
+            FnNode::Random | FnNode::Rule(_, _) => {
                 return Err("Rule node encountered during GLSL compilation".to_string());
             }
 
@@ -458,8 +458,9 @@ impl FnNode {
             FnNode::Random => writeln!(f, "{indent_str}Random"),
             FnNode::Boolean(val) => writeln!(f, "{indent_str}Boolean({val})"),
             FnNode::Number(val) => writeln!(f, "{indent_str}Number({val})"),
-            FnNode::Rule(val) => {
-                writeln!(f, "{indent_str}Rule({val})")
+            FnNode::Rule(_, ch) => {
+                // writeln!(f, "{indent_str}Rule({val})")
+                writeln!(f, "{indent_str}{ch}")
             }
 
             // Binary operations
@@ -515,7 +516,10 @@ impl Display for FnNode {
             FnNode::Random => write!(f, "random"),
             FnNode::Boolean(val) => write!(f, "{val}"),
             FnNode::Number(val) => write!(f, "{val}"),
-            FnNode::Rule(val) => write!(f, "rule({val})"),
+            FnNode::Rule(_val, ch) => {
+                // write!(f, "rule({val})")
+                write!(f, "{ch}")
+            }
             FnNode::Arithmetic(a, op, b) => match op {
                 ArithmeticOp::Add => write!(f, "add({a}, {b})"),
                 ArithmeticOp::Sub => write!(f, "sub({a}, {b})"),
