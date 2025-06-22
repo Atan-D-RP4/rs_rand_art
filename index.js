@@ -1,24 +1,14 @@
 import init, { ShaderRenderer } from "./pkg/shaderand.js";
 
-/**
- * Enhanced Shader Renderer Application
- * Manages WebAssembly-based shader rendering with interactive controls
- */
 class ShaderApp {
 	constructor() {
 		this.renderer = null;
 		this.isRunning = true;
 		this.showingShaderCode = false;
-		this.displayMode = "shader"; // 'shader' or 'grammar'
-
-		// DOM elements cache
+		this.showingGrammarInfo = false;
+		this.showingGrammarEditor = false;
 		this.elements = {};
-
-		// Status display configuration
-		this.statusConfig = {
-			displayDuration: 3000,
-			fadeOutDuration: 500,
-		};
+		this.statusTimeout = null;
 
 		// Bind methods to preserve context
 		this.handleCanvasClick = this.handleCanvasClick.bind(this);
@@ -26,9 +16,6 @@ class ShaderApp {
 		this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
 	}
 
-	/**
-	 * Cache frequently accessed DOM elements
-	 */
 	cacheElements() {
 		const elementIds = [
 			"status",
@@ -37,9 +24,16 @@ class ShaderApp {
 			"shader_canvas",
 			"toggle-btn",
 			"shader-info-btn",
-			"shader-info-btn2",
+			"grammar-info-btn",
 			"reload-btn",
 			"shader-download-btn",
+			"grammar-editor",
+			"grammar-textarea",
+			"apply-grammar-btn",
+			"cancel-grammar-btn",
+			"grammar-display",
+			"grammar-code",
+			"grammar-edit-btn",
 		];
 
 		elementIds.forEach((id) => {
@@ -50,11 +44,6 @@ class ShaderApp {
 		});
 	}
 
-	/**
-	 * Display status message with optional error styling
-	 * @param {string} message - Status message to display
-	 * @param {boolean} isError - Whether this is an error message
-	 */
 	showStatus(message, isError = false) {
 		const statusEl = this.elements.status;
 		if (!statusEl) return;
@@ -64,53 +53,57 @@ class ShaderApp {
 		statusEl.style.display = "block";
 		statusEl.style.opacity = "1";
 
-		// Clear any existing timeout
 		if (this.statusTimeout) {
 			clearTimeout(this.statusTimeout);
 		}
 
-		// Auto-hide status after configured duration
 		this.statusTimeout = setTimeout(() => {
 			statusEl.style.opacity = "0";
 			setTimeout(() => {
 				statusEl.style.display = "none";
-			}, this.statusConfig.fadeOutDuration);
-		}, this.statusConfig.displayDuration);
+			}, 500);
+		}, 3000);
 	}
 
-	/**
-	 * Update shader code display based on current mode
-	 */
 	updateShaderDisplay() {
 		if (!this.showingShaderCode || !this.renderer) return;
 
 		try {
-			const content = this.displayMode === "shader"
-				? this.renderer.get_current_shader()
-				: this.renderer.get_current_grammar();
-
+			const content = this.renderer.get_current_shader();
 			if (this.elements["shader-code"]) {
 				this.elements["shader-code"].textContent = content;
 			}
 		} catch (error) {
 			console.error("Failed to update shader display:", error);
-			this.showStatus("❌ Failed to update display", true);
+			this.showStatus("❌ Failed to update shader display", true);
 		}
 	}
 
-	/**
-	 * Reload the current shader
-	 */
-	async reloadShader() {
+	updateGrammarDisplay() {
+		if (!this.showingGrammarInfo || !this.renderer) return;
+
+		try {
+			const content = this.renderer.get_current_grammar();
+			if (this.elements["grammar-code"]) {
+				this.elements["grammar-code"].textContent = content;
+			}
+		} catch (error) {
+			console.error("Failed to update grammar display:", error);
+			this.showStatus("❌ Failed to update grammar display", true);
+		}
+	}
+
+	reloadShader() {
 		if (!this.renderer) {
 			this.showStatus("❌ Renderer not initialized", true);
 			return;
 		}
 
 		try {
-			await this.renderer.reload_shader();
+			this.renderer.reload_shader();
 			this.showStatus("✅ Shader reloaded successfully!");
 			this.updateShaderDisplay();
+			this.updateGrammarDisplay();
 		} catch (error) {
 			console.error("Failed to reload shader:", error);
 			this.showStatus(
@@ -120,9 +113,6 @@ class ShaderApp {
 		}
 	}
 
-	/**
-	 * Toggle rendering state (play/pause)
-	 */
 	toggleRendering() {
 		if (!this.renderer) {
 			this.showStatus("❌ Renderer not initialized", true);
@@ -142,7 +132,6 @@ class ShaderApp {
 				toggleBtn.textContent = "⏸️ Pause";
 				this.showStatus("▶️ Rendering resumed");
 			}
-
 			this.isRunning = !this.isRunning;
 		} catch (error) {
 			console.error("Failed to toggle rendering:", error);
@@ -150,39 +139,111 @@ class ShaderApp {
 		}
 	}
 
-	/**
-	 * Toggle shader information display
-	 * @param {string} mode - Display mode: 'shader' or 'grammar'
-	 */
-	toggleShaderInfo(mode = "shader") {
+	toggleShaderInfo() {
 		const shaderDisplay = this.elements["shader-display"];
-		const btnKey = mode === "shader"
-			? "shader-info-btn"
-			: "shader-info-btn2";
-		const btn = this.elements[btnKey];
-
+		const btn = this.elements["shader-info-btn"];
 		if (!shaderDisplay || !btn) return;
 
-		this.displayMode = mode;
 		this.showingShaderCode = !this.showingShaderCode;
-
 		if (this.showingShaderCode) {
 			shaderDisplay.style.display = "block";
-			btn.textContent = mode === "shader"
-				? "🙈 Hide Shader Code"
-				: "🙈 Hide Shader Grammar";
+			btn.textContent = "🙈 Hide Shader Code";
 			this.updateShaderDisplay();
 		} else {
 			shaderDisplay.style.display = "none";
-			btn.textContent = mode === "shader"
-				? "📋 Show Shader Code"
-				: "📋 Show Shader Grammar";
+			btn.textContent = "📋 Show Shader Code";
 		}
 	}
 
-	/**
-	 * Download current shader source code
-	 */
+	toggleGrammarInfo() {
+		const grammarDisplay = this.elements["grammar-display"];
+		const btn = this.elements["grammar-info-btn"];
+		if (!grammarDisplay || !btn) return;
+
+		this.showingGrammarInfo = !this.showingGrammarInfo;
+		if (this.showingGrammarInfo) {
+			grammarDisplay.style.display = "block";
+			btn.textContent = "🙈 Hide Grammar";
+			this.updateGrammarDisplay();
+		} else {
+			grammarDisplay.style.display = "none";
+			btn.textContent = "📋 Show Grammar";
+		}
+	}
+
+	showGrammarEditor() {
+		if (!this.renderer) {
+			this.showStatus("❌ Renderer not initialized", true);
+			return;
+		}
+
+		try {
+			const grammarTextarea = this.elements["grammar-textarea"];
+			const grammarEditor = this.elements["grammar-editor"];
+			const editBtn = this.elements["grammar-edit-btn"];
+
+			if (!grammarTextarea || !grammarEditor || !editBtn) return;
+
+			if (this.showingGrammarEditor) {
+				grammarEditor.style.display = "none";
+				editBtn.textContent = "✏️ Edit Grammar";
+				this.showingGrammarEditor = false;
+			} else {
+				const comments =
+					"# Due to some implementation details, the first rule of the grammar must be a vec3().\n" +
+					"# The First rule also cannot be referenced by any other rule.\n\n";
+
+				const currentGrammar = comments +
+					this.renderer.get_current_grammar();
+				grammarTextarea.value = currentGrammar;
+				grammarEditor.style.display = "block";
+				editBtn.textContent = "🙈 Hide Grammar Editor";
+				this.showingGrammarEditor = true;
+				grammarTextarea.focus();
+			}
+		} catch (error) {
+			console.error("Failed to show grammar editor:", error);
+			this.showStatus("❌ Failed to load grammar editor", true);
+		}
+	}
+
+	applyGrammar() {
+		if (!this.renderer) {
+			this.showStatus("❌ Renderer not initialized", true);
+			return;
+		}
+
+		try {
+			const grammarTextarea = this.elements["grammar-textarea"];
+			if (!grammarTextarea) return;
+			const newGrammar = grammarTextarea.value;
+			this.renderer.reload_grammar(newGrammar);
+			this.showStatus("✅ Grammar applied successfully!");
+			this.updateShaderDisplay();
+			this.updateGrammarDisplay();
+			this.hideGrammarEditor();
+		} catch (error) {
+			console.error("Failed to apply grammar:", error);
+			this.showStatus("❌ Failed to apply grammar", true);
+		}
+	}
+
+	cancelGrammarEdit() {
+		this.hideGrammarEditor();
+		this.showStatus("Grammar editing cancelled");
+	}
+
+	hideGrammarEditor() {
+		const grammarEditor = this.elements["grammar-editor"];
+		const editBtn = this.elements["grammar-edit-btn"];
+
+		if (grammarEditor && editBtn) {
+			grammarEditor.style.display = "none";
+			editBtn.textContent = "✏️ Edit Grammar";
+			this.showingGrammarEditor = false;
+		}
+	}
+
 	downloadShader() {
 		if (!this.renderer) {
 			this.showStatus("❌ Renderer not initialized", true);
@@ -211,18 +272,11 @@ class ShaderApp {
 		}
 	}
 
-	/**
-	 * Handle canvas click events
-	 * @param {Event} event - Click event
-	 */
 	handleCanvasClick(event) {
 		event.preventDefault();
 		this.reloadShader();
 	}
 
-	/**
-	 * Handle page visibility changes to optimize performance
-	 */
 	handleVisibilityChange() {
 		if (!this.renderer) return;
 
@@ -237,16 +291,10 @@ class ShaderApp {
 		}
 	}
 
-	/**
-	 * Handle page unload to cleanup resources
-	 */
 	handleBeforeUnload() {
 		this.cleanup();
 	}
 
-	/**
-	 * Clean up resources
-	 */
 	cleanup() {
 		if (this.renderer) {
 			try {
@@ -261,12 +309,10 @@ class ShaderApp {
 
 		if (this.statusTimeout) {
 			clearTimeout(this.statusTimeout);
+			this.statusTimeout = null;
 		}
 	}
 
-	/**
-	 * Hide the initial click hint with smooth animation
-	 */
 	hideClickHint() {
 		const hint = document.querySelector(".click-hint");
 		if (!hint) return;
@@ -281,23 +327,21 @@ class ShaderApp {
 		}, 500);
 	}
 
-	/**
-	 * Set up all event listeners
-	 */
 	setupEventListeners() {
-		// Canvas interaction
 		const canvas = this.elements.shader_canvas;
 		if (canvas) {
 			canvas.addEventListener("click", this.handleCanvasClick);
 		}
 
-		// Control buttons
 		const buttonHandlers = {
 			"reload-btn": () => this.reloadShader(),
 			"toggle-btn": () => this.toggleRendering(),
-			"shader-info-btn": () => this.toggleShaderInfo("shader"),
-			"shader-info-btn2": () => this.toggleShaderInfo("grammar"),
+			"shader-info-btn": () => this.toggleShaderInfo(),
+			"grammar-info-btn": () => this.toggleGrammarInfo(),
 			"shader-download-btn": () => this.downloadShader(),
+			"grammar-edit-btn": () => this.showGrammarEditor(),
+			"apply-grammar-btn": () => this.applyGrammar(),
+			"cancel-grammar-btn": () => this.cancelGrammarEdit(),
 		};
 
 		Object.entries(buttonHandlers).forEach(([btnId, handler]) => {
@@ -307,7 +351,6 @@ class ShaderApp {
 			}
 		});
 
-		// Window events
 		window.addEventListener("beforeunload", this.handleBeforeUnload);
 		document.addEventListener(
 			"visibilitychange",
@@ -315,29 +358,15 @@ class ShaderApp {
 		);
 	}
 
-	/**
-	 * Initialize the shader renderer application
-	 */
 	async initialize() {
 		try {
-			// Cache DOM elements first
 			this.cacheElements();
-
-			// Initialize WebAssembly module
 			await init();
-
-			// Create renderer instance
 			this.renderer = new ShaderRenderer("shader_canvas");
-
-			// Start rendering
 			this.renderer.start_rendering();
-
-			// Set up event listeners
 			this.setupEventListeners();
-
 			this.showStatus("🚀 Shader renderer initialized!");
 
-			// Hide click hint after initialization
 			setTimeout(() => {
 				this.hideClickHint();
 			}, 3000);
@@ -351,13 +380,11 @@ class ShaderApp {
 	}
 }
 
-// Application instance
 const shaderApp = new ShaderApp();
 
-// Initialize when DOM is ready
 if (document.readyState === "loading") {
 	document.addEventListener("DOMContentLoaded", () => shaderApp.initialize());
 } else {
-	// DOM already loaded
 	shaderApp.initialize();
 }
+

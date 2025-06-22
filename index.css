@@ -43,11 +43,11 @@ button {
   background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
   border: none;
   color: white;
-  padding: 12px 24px;
+  padding: 10px 20px;
   margin: 0 10px;
   border-radius: 25px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 12px;
   font-weight: bold;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);

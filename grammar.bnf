@@ -14,9 +14,10 @@ B | random
 
 # Expressions
 C ||  B
+  |  E
   ||| add(C, C)
   ||| mul(C, C)
-  | sqrt(abs(C))
+  ||  sqrt(abs(C))
   # ||| abs(C)
   #||| sin(C)
   ;
