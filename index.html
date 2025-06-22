@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Shader Reloader</title>
+    <link rel="stylesheet" href="./index.css">
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎨 WebGL Shader Generator</h1>
+
+      <div class="info">
+        <p><strong>Instructions:</strong></p>
+        <ul>
+          <li>Click on the canvas to generate a new random shader</li>
+          <li>Press R key to reload the shader</li>
+          <li>Use the buttons below for manual control</li>
+          <li>Each reload generates a completely new visual pattern!</li>
+        </ul>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="shader_canvas" width="800" height="600"></canvas>
+        <div class="click-hint">Click me to reload shader!</div>
+      </div>
+
+      <div class="controls">
+        <button id="reload-btn">🔄 Reload Shader</button>
+        <button id="toggle-btn">⏸️ Pause</button>
+        <button id="shader-info-btn">📋 Show Shader Code</button>
+		<button id="shader-info-btn2">📋 Show Shader Grammar</button>
+        <button id="shader-download-btn">📥 Download Shader</button>
+      </div>
+
+      <div id="status" class="status" style="display: none"></div>
+
+      <div id="shader-display" class="shader-info" style="display: none">
+        <h3>Current Shader Code:</h3>
+        <pre id="shader-code"></pre>
+      </div>
+    </div>
+
+    <script src="./index.js" type="module">
+	</script>
+  </body>
+</html>

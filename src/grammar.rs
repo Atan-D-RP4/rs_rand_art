@@ -1,3 +1,4 @@
+
 use crate::node::FnNode;
 use std::collections::BTreeMap;
 use std::fmt::Display;
@@ -92,8 +93,7 @@ impl Grammar {
         let mut attempts: i32 = 100; // GEN_RULE_MAX_ATTEMPTS
 
         while attempts > 0 {
-            use rand::Rng;
-            let p = rand::thread_rng().gen_range(0.0..1.0);
+            let p = fastrand::f64();
             let mut t = 0.0;
 
             for branch in &rule.branches {
@@ -120,12 +120,7 @@ impl Grammar {
             }
 
             // Random number generation
-            FnNode::Random => {
-                use rand::Rng;
-                Some(FnNode::Number(
-                    rand::thread_rng().gen_range(0.0..1.0) * 2.0 - 1.0,
-                ))
-            }
+            FnNode::Random => Some(FnNode::Number(fastrand::f32() * 2.0 - 1.0)),
 
             // Unary operations
             FnNode::Unary(op, expr) => {
@@ -169,9 +164,9 @@ impl Grammar {
 impl Default for Grammar {
     fn default() -> Self {
         use crate::node::{ArithmeticOp, FnNode /*CompareOp*/, UnaryOp};
-        let _ = 0; // E
-        let a = 1; // A
-        let c = 2; // C
+        let _ = 0;  // E
+        let a = 1;  // A
+        let c = 2;  // C
         /*
         * # Entry
         * E | vec3(C, C, C)
@@ -270,3 +265,4 @@ impl Display for Grammar {
         Ok(())
     }
 }
+

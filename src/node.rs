@@ -18,6 +18,7 @@
 // }
 use std::fmt::{Display, Write};
 
+#[cfg(not(target_arch = "wasm32"))]
 use image::{self as img};
 
 const WIDTH: u32 = 1920;
@@ -321,6 +322,7 @@ impl FnNode {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn render(&self) -> Result<(), String> {
         let mut img = img::ImageBuffer::new(WIDTH, HEIGHT);
 
