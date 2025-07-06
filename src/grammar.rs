@@ -285,9 +285,10 @@ impl Display for Grammar {
         for (symbol, rule) in &self.map {
             writeln!(f, "{symbol}")?;
             for branch in &rule.branches {
-                (0..branch.weight).for_each(|_| {
+                (0..branch.weight).take_while(|_| {
                     write!(f, "|").unwrap();
-                });
+                    true
+                }).for_each(drop);
                 match &branch.node {
                     FnNode::Triple(a, b, c) => write!(f, "vec3({},{},{})", *a, *b, *c)?,
                     _ => writeln!(f, " {}", branch.node)?,
