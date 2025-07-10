@@ -15,21 +15,41 @@ const SCR_WIDTH: u32 = 800;
 const SCR_HEIGHT: u32 = 600;
 
 const VERTEX_SHADER_SOURCE: &str = r"
-#version 330
+#version 450
 
-in vec3 vertexPosition;
-in vec2 vertexTexCoord;
-in vec4 vertexColor;
+// Define input attributes from vertex buffer
+in vec3 position; // Vertex position
+in vec2 texCoord; // Texture coordinates
+in vec4 color;    // Vertex color
 
 out vec2 fragTexCoord;
 out vec4 fragColor;
-uniform mat4 mvp;
+uniform mat4 modelViewProjection;
 
 void main()
 {
     fragTexCoord = vertexTexCoord;
     fragColor = vertexColor;
     gl_Position = mvp*vec4(vertexPosition, 1.0);
+}
+";
+
+const FRAGMENT_SHADER_TEMPLATE: &str = r"
+#version 450
+precision mediump float; // Medium precision for portability across devices
+in vec2 fragTexCoord;    // Interpolated texture coordinates
+out vec4 finalColor;     // Output color of the fragment
+uniform float time;      // Time uniform for animation effects
+// Function to apply color transformation
+vec4 applyColorTransform(vec3 rgb) {
+    return vec4(rgb + 0.5, 1); // Example transformation, adjust as needed
+}
+void main()
+{
+    float x = fragTexCoord.x;
+    float y = fragTexCoord.y;
+    float t = tan(time);
+    finalColor = applyColorTransform(%s);
 }
 ";
 
@@ -86,25 +106,7 @@ fn get_random_fs() -> Result<String, String> {
     // func.optimize()?;
     // println!("Optimized Function:");
     // println!("{func}");
-    let template_fs = String::from(
-        r"#version 330
-
-          in vec2 fragTexCoord;
-          out vec4 finalColor;
-          uniform float time;
-
-          vec4 map_rgb(vec3 rgb) {
-              return vec4(rgb + 1/2, 1);
-          }
-
-          void main() {
-              float x = fragTexCoord.x;
-              float y = fragTexCoord.y;
-              float t = tan(time);
-              finalColor = map_rgb(%s);
-          }
-        ",
-    );
+    let template_fs = String::from(FRAGMENT_SHADER_TEMPLATE);
     func.compile_to_glsl_fs(&template_fs)
 }
 
@@ -141,9 +143,8 @@ pub fn glfw_main() -> Result<(), String> {
 
     let (shader_program, vao) = unsafe {
         let vertex_shader = compile_shader(VERTEX_SHADER_SOURCE, gl::VERTEX_SHADER);
-        let FRAGMENT_SHADER_SOURCE = &get_random_fs()?;
-        // println!("{}", FRAGMENT_SHADER_SOURCE);
-        let fragment_shader = compile_shader(FRAGMENT_SHADER_SOURCE, gl::FRAGMENT_SHADER);
+        let fs_source = &get_random_fs()?;
+        let fragment_shader = compile_shader(fs_source, gl::FRAGMENT_SHADER);
         let shader_program = gl::CreateProgram();
         gl::AttachShader(shader_program, vertex_shader);
         gl::AttachShader(shader_program, fragment_shader);

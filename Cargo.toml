@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 logos = "0.15.0"
-fastrand = "2.3.0"
+# disable the os_rng feature
+rand = { version = "0.9.1" }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 image = "0.25.5"
@@ -19,7 +21,7 @@ web-sys = { version = "0.3.77", features = ["console", "WebGlUniformLocation", "
 
 
 [lib]
-name = "shaderand"
+name = "shaderand_wasm"
 crate-type = ["cdylib", "rlib"]
 
 # [profile.dev.package.image]         # Modify profile settings via config.

@@ -81,7 +81,7 @@ impl Grammar {
         let mut attempts: i32 = 100; // GEN_RULE_MAX_ATTEMPTS
 
         while attempts > 0 {
-            let p = fastrand::f64();
+            let p = rand::random::<f64>();
             let mut t = 0.0;
 
             for branch in &rule.branches {
@@ -108,7 +108,7 @@ impl Grammar {
             }
 
             // Random number generation
-            FnNode::Random => Some(FnNode::Number(fastrand::f32() * 2.0 - 1.0)),
+            FnNode::Random => Some(FnNode::Number(rand::random::<f32>() * 2.0 - 1.0)),
 
             // Unary operations
             FnNode::Unary(op, expr) => {
@@ -285,10 +285,12 @@ impl Display for Grammar {
         for (symbol, rule) in &self.map {
             writeln!(f, "{symbol}")?;
             for branch in &rule.branches {
-                (0..branch.weight).take_while(|_| {
-                    write!(f, "|").unwrap();
-                    true
-                }).for_each(drop);
+                (0..branch.weight)
+                    .take_while(|_| {
+                        write!(f, "|").unwrap();
+                        true
+                    })
+                    .for_each(drop);
                 match &branch.node {
                     FnNode::Triple(a, b, c) => write!(f, "vec3({},{},{})", *a, *b, *c)?,
                     _ => writeln!(f, " {}", branch.node)?,
