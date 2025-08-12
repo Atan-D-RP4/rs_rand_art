@@ -8,6 +8,9 @@ logos = "0.15.0"
 # disable the os_rng feature
 rand = { version = "0.9.1" }
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
+wgpu = "26.0.1"
+bytemuck = "1.23.1"
+wasm-bindgen-futures = "0.4.50"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 image = "0.25.5"
